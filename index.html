@@ -3,280 +3,296 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Siskeu-Mini | Admin Sekolah</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <title>Sistem Administrasi Sekolah Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --sidebar-width: 250px; }
-        body { background-color: #f4f7f6; overflow-x: hidden; }
-        #sidebar { width: var(--sidebar-width); height: 100vh; position: fixed; background: #2c3e50; color: white; transition: all 0.3s; z-index: 1000; }
-        #content { margin-left: var(--sidebar-width); padding: 20px; transition: all 0.3s; }
-        .nav-link { color: rgba(255,255,255,0.8); margin-bottom: 5px; }
-        .nav-link:hover, .nav-link.active { background: #34495e; color: white; border-radius: 5px; }
-        .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: #ecf0f1; }
-        @media (max-width: 768px) { #sidebar { margin-left: -250px; } #sidebar.active { margin-left: 0; } #content { margin-left: 0; } }
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --light: #ecf0f1;
+            --danger: #e74c3c;
+            --success: #27ae60;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f4f7f6; }
+        
+        /* Sidebar */
+        #sidebar { width: 250px; background: var(--primary); height: 100vh; color: white; position: fixed; transition: 0.3s; }
+        #sidebar h2 { text-align: center; padding: 20px 10px; font-size: 18px; border-bottom: 1px solid var(--secondary); }
+        .nav-menu { list-style: none; padding: 0; }
+        .nav-menu li { padding: 15px 20px; cursor: pointer; transition: 0.3s; border-bottom: 1px solid #3e4f5f; }
+        .nav-menu li:hover { background: var(--accent); }
+        .nav-menu i { margin-right: 10px; width: 20px; }
+
+        /* Main Content */
+        #main { margin-left: 250px; width: 100%; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        
+        /* Login Overlay */
+        #login-page { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 1000; display: flex; justify-content: center; align-items: center; }
+        .login-box { background: white; padding: 40px; border-radius: 10px; width: 350px; text-align: center; }
+        
+        input, select, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { cursor: pointer; border: none; font-weight: bold; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #f8f9fa; }
+        
+        .hidden { display: none !important; }
+        .flex-group { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
 
 <div id="login-page">
-    <div class="card p-4" style="width: 350px;">
-        <h4 class="text-center mb-4"><i class="fas fa-school text-primary"></i> Login Admin</h4>
-        <input type="text" id="username" class="form-control mb-3" placeholder="Username (admin)">
-        <input type="password" id="password" class="form-control mb-3" placeholder="Password (admin)">
-        <button onclick="auth.login()" class="btn btn-primary w-100">Masuk</button>
+    <div class="login-box">
+        <h2>ADMIN LOGIN</h2>
+        <input type="text" id="username" placeholder="Username (admin)">
+        <input type="password" id="password" placeholder="Password (123)">
+        <button class="btn-primary" onclick="handleLogin()">Login</button>
     </div>
 </div>
 
-<div id="main-app" class="d-none">
-    <nav id="sidebar" class="p-3">
-        <h4>Siskeu-Mini</h4>
-        <hr>
-        <ul class="nav flex-column">
-            <li class="nav-item"><a href="#" class="nav-link active" onclick="ui.showSection('sect-dashboard')"><i class="fas fa-home me-2"></i> Dashboard</a></li>
-            <li class="nav-item"><a href="#" class="nav-link" onclick="ui.showSection('sect-sekolah')"><i class="fas fa-university me-2"></i> Data Sekolah</a></li>
-            <li class="nav-item"><a href="#" class="nav-link" onclick="ui.showSection('sect-guru')"><i class="fas fa-chalkboard-teacher me-2"></i> Data Guru</a></li>
-            <li class="nav-item"><a href="#" class="nav-link" onclick="ui.showSection('sect-siswa')"><i class="fas fa-user-graduate me-2"></i> Data Siswa</a></li>
-            <li class="nav-item"><a href="#" class="nav-link" onclick="ui.showSection('sect-gaji')"><i class="fas fa-money-bill-wave me-2"></i> Gaji Guru</a></li>
-        </ul>
-        <hr>
-        <button class="btn btn-danger btn-sm w-100 mb-2" onclick="dataMgr.backup()"><i class="fas fa-download"></i> Backup Data</button>
-        <label class="btn btn-warning btn-sm w-100 mb-4">
-            <i class="fas fa-upload"></i> Restore <input type="file" hidden onchange="dataMgr.restore(event)">
-        </label>
-        <button onclick="auth.logout()" class="btn btn-outline-light btn-sm w-100"><i class="fas fa-sign-out-alt"></i> Keluar</button>
-    </nav>
+<nav id="sidebar" class="hidden">
+    <h2>SISTEM SEKOLAH</h2>
+    <ul class="nav-menu">
+        <li onclick="showSection('sec-dashboard')"><i class="fas fa-home"></i> Dashboard</li>
+        <li onclick="showSection('sec-guru')"><i class="fas fa-chalkboard-teacher"></i> Data Guru</li>
+        <li onclick="showSection('sec-siswa')"><i class="fas fa-user-graduate"></i> Data Siswa</li>
+        <li onclick="showSection('sec-gaji')"><i class="fas fa-money-bill-wave"></i> Gaji & Pengganti</li>
+        <li onclick="showSection('sec-backup')"><i class="fas fa-database"></i> Backup & Restore</li>
+        <li onclick="handleLogout()" style="margin-top: 50px; background: var(--danger);"><i class="fas fa-sign-out-alt"></i> Logout</li>
+    </ul>
+</nav>
 
-    <div id="content">
-        <section id="sect-dashboard">
-            <h2 class="mb-4">Dashboard Utama</h2>
-            <div class="row">
-                <div class="col-md-4"><div class="card bg-primary text-white p-3 mb-3"><h5>Total Guru</h5><h2 id="count-guru">0</h2></div></div>
-                <div class="col-md-4"><div class="card bg-success text-white p-3 mb-3"><h5>Total Siswa</h5><h2 id="count-siswa">0</h2></div></div>
-                <div class="col-md-4"><div class="card bg-info text-white p-3 mb-3"><h5>Total Gaji (Bulan Ini)</h5><h2 id="sum-gaji">Rp 0</h2></div></div>
+<main id="main" class="hidden">
+    <section id="sec-guru" class="content-section hidden">
+        <div class="card">
+            <h3><i class="fas fa-user-plus"></i> Tambah Guru</h3>
+            <div class="flex-group">
+                <input type="text" id="guru-nama" placeholder="Nama Lengkap">
+                <input type="text" id="guru-nip" placeholder="NIP/ID">
+                <button class="btn-success" onclick="saveGuru()">Simpan Data</button>
             </div>
-        </section>
+            <table id="table-guru">
+                <thead><tr><th>NIP</th><th>Nama</th><th>Aksi</th></tr></thead>
+                <tbody id="list-guru"></tbody>
+            </table>
+        </div>
+    </section>
 
-        <section id="sect-gaji" class="d-none">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>Manajemen Gaji Guru</h2>
-                <button class="btn btn-dark" onclick="ui.printPDF('table-gaji', 'Rekap Gaji Guru')"><i class="fas fa-print"></i> Cetak PDF</button>
-            </div>
-            
-            <div class="card p-4 mb-4">
-                <h5>Input Gaji Harian</h5>
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <select id="gaji-nama" class="form-select"></select>
-                    </div>
-                    <div class="col-md-2">
-                        <input type="number" id="gaji-pokok" class="form-control" placeholder="Gaji Dasar/Hari">
-                    </div>
-                    <div class="col-md-3">
-                        <select id="gaji-tipe" class="form-select">
-                            <option value="Reguler">Reguler</option>
-                            <option value="Guru Pengganti Full">Guru Pengganti Full (+50k)</option>
-                            <option value="Selingan">Selingan (+25k)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <input type="number" id="gaji-potongan" class="form-control" placeholder="Potongan (Rp)">
-                    </div>
-                    <div class="col-md-2">
-                        <button class="btn btn-primary w-100" onclick="salary.add()">Tambah</button>
-                    </div>
+    <section id="sec-gaji" class="content-section hidden">
+        <div class="card">
+            <h3>Kalkulator Gaji & Guru Pengganti</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>Pilih Guru:</label>
+                    <select id="gaji-nama-guru"></select>
+                    <label>Tipe Mengajar:</label>
+                    <select id="gaji-tipe">
+                        <option value="150000">Guru Pengganti Full (Rp 150rb/hr)</option>
+                        <option value="75000">Selingan (Rp 75rb/hr)</option>
+                    </select>
+                    <label>Potongan (Absen/Denda):</label>
+                    <input type="number" id="gaji-potongan" value="0">
+                    <button class="btn-primary" onclick="prosesGaji()">Hitung & Tambah Rekap</button>
+                </div>
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 5px;">
+                    <h4>Ringkasan Terpilih</h4>
+                    <div id="gaji-summary">Silahkan hitung...</div>
                 </div>
             </div>
+        </div>
 
-            <div class="table-responsive mt-4">
-                <table class="table table-hover bg-white rounded shadow-sm" id="table-gaji">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Tanggal</th>
-                            <th>Nama Guru</th>
-                            <th>Status</th>
-                            <th>Potongan</th>
-                            <th>Total Bersih</th>
-                        </tr>
-                    </thead>
-                    <tbody id="list-gaji"></tbody>
-                </table>
-            </div>
-            
-            <div class="row mt-4">
-                <div class="col-md-4"><div class="card p-3 text-center"><h6>Rekap 1 Bulan</h6><h4 id="rekap-1">Rp 0</h4></div></div>
-                <div class="col-md-4"><div class="card p-3 text-center"><h6>Rekap 3 Bulan</h6><h4 id="rekap-3">Rp 0</h4></div></div>
-                <div class="col-md-4"><div class="card p-3 text-center"><h6>Rekap 6 Bulan</h6><h4 id="rekap-6">Rp 0</h4></div></div>
-            </div>
-        </section>
+        <div class="card">
+            <h3>Rekapan Gaji</h3>
+            <button onclick="exportPDF()" class="btn-danger" style="width: auto;"><i class="fas fa-file-pdf"></i> Cetak PDF Rekap</button>
+            <table id="table-rekap">
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Guru</th>
+                        <th>Tipe</th>
+                        <th>Potongan</th>
+                        <th>Total Bersih</th>
+                    </tr>
+                </thead>
+                <tbody id="list-rekap"></tbody>
+            </table>
+        </div>
+    </section>
 
-        <section id="sect-guru" class="d-none">
-            <h2>Data Guru</h2>
-            <div class="card p-3 mb-3">
-                <div class="input-group">
-                    <input type="text" id="guru-nama" class="form-control" placeholder="Nama Guru Baru">
-                    <button class="btn btn-success" onclick="dataMgr.addGuru()">Tambah Guru</button>
-                </div>
-            </div>
-            <ul class="list-group shadow-sm" id="list-guru"></ul>
-        </section>
-        
-        <section id="sect-sekolah" class="d-none">
-            <h2>Data Sekolah</h2>
-            <div class="card p-4">
-                <label>Nama Sekolah</label>
-                <input type="text" class="form-control mb-3" id="sch-name" value="SMA Maju Jaya">
-                <label>Alamat</label>
-                <textarea class="form-control mb-3" id="sch-addr">Jl. Pendidikan No. 123</textarea>
-                <button class="btn btn-primary" onclick="alert('Data Tersimpan!')">Update Profil</button>
-            </div>
-        </section>
-
-    </div>
-</div>
+    <section id="sec-backup" class="content-section hidden">
+        <div class="card">
+            <h3>Manajemen Data (JSON)</h3>
+            <p>Simpan atau kembalikan seluruh data sistem sekolah Anda.</p>
+            <button class="btn-success" onclick="downloadBackup()"><i class="fas fa-download"></i> Backup Semua Data</button>
+            <hr>
+            <label>Restore Data:</label>
+            <input type="file" id="restoreFile" onchange="restoreData(event)">
+        </div>
+    </section>
+</main>
 
 <script>
     // --- STATE MANAGEMENT ---
-    let db = JSON.parse(localStorage.getItem('siskeu_db')) || {
+    let db = {
         guru: [],
         siswa: [],
-        gaji: [],
-        sekolah: { nama: "SMA Maju Jaya" }
+        rekapGaji: [],
+        config: { namaSekolah: "SMA Harapan Bangsa" }
     };
 
-    function saveDB() {
-        localStorage.setItem('siskeu_db', JSON.stringify(db));
-        renderAll();
+    // Load Initial Data
+    if (localStorage.getItem('sekolahDB')) {
+        db = JSON.parse(localStorage.getItem('sekolahDB'));
     }
 
-    // --- AUTH MODULE ---
-    const auth = {
-        login: () => {
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-            if(u === 'admin' && p === 'admin') {
-                document.getElementById('login-page').classList.add('d-none');
-                document.getElementById('main-app').classList.remove('d-none');
-                renderAll();
-            } else { alert('Login Gagal!'); }
-        },
-        logout: () => location.reload()
-    };
-
-    // --- UI MODULE ---
-    const ui = {
-        showSection: (id) => {
-            document.querySelectorAll('section').forEach(s => s.classList.add('d-none'));
-            document.getElementById(id).classList.remove('d-none');
-            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            event.target.classList.add('active');
-        },
-        printPDF: (tableId, title) => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.text(title, 14, 15);
-            doc.autoTable({ html: `#${tableId}`, margin: { top: 25 } });
-            doc.save(`${title}.pdf`);
+    // --- AUTH LOGIC ---
+    function handleLogin() {
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        if(u === 'admin' && p === '123') {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('main').classList.remove('hidden');
+            showSection('sec-dashboard');
+            refreshAll();
+        } else {
+            alert('Login Gagal!');
         }
-    };
+    }
 
-    // --- DATA MODULE ---
-    const dataMgr = {
-        addGuru: () => {
-            const nama = document.getElementById('guru-nama').value;
-            if(nama) {
-                db.guru.push({ id: Date.now(), nama });
-                document.getElementById('guru-nama').value = '';
-                saveDB();
+    function handleLogout() {
+        location.reload();
+    }
+
+    // --- NAVIGATION ---
+    function showSection(id) {
+        document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    // --- GURU LOGIC ---
+    function saveGuru() {
+        const nama = document.getElementById('guru-nama').value;
+        const nip = document.getElementById('guru-nip').value;
+        if(!nama || !nip) return alert("Isi semua data!");
+        
+        db.guru.push({ id: Date.now(), nip, nama });
+        saveToLocal();
+        refreshAll();
+    }
+
+    // --- GAJI LOGIC ---
+    function prosesGaji() {
+        const guruIdx = document.getElementById('gaji-nama-guru').value;
+        const tipeHarga = parseInt(document.getElementById('gaji-tipe').value);
+        const potongan = parseInt(document.getElementById('gaji-potongan').value);
+        const tipeLabel = document.getElementById('gaji-tipe').options[document.getElementById('gaji-tipe').selectedIndex].text;
+        
+        const total = tipeHarga - potongan;
+        const data = {
+            tgl: new Date().toLocaleDateString(),
+            guru: db.guru[guruIdx].nama,
+            tipe: tipeLabel,
+            potongan: potongan,
+            total: total,
+            timestamp: Date.now()
+        };
+
+        db.rekapGaji.push(data);
+        saveToLocal();
+        refreshAll();
+        alert("Gaji berhasil direkap!");
+    }
+
+    // --- DATA HANDLING ---
+    function saveToLocal() {
+        localStorage.setItem('sekolahDB', JSON.stringify(db));
+    }
+
+    function refreshAll() {
+        // Refresh Table Guru
+        const listGuru = document.getElementById('list-guru');
+        const selectGuru = document.getElementById('gaji-nama-guru');
+        listGuru.innerHTML = '';
+        selectGuru.innerHTML = '';
+        
+        db.guru.forEach((g, idx) => {
+            listGuru.innerHTML += `<tr><td>${g.nip}</td><td>${g.nama}</td><td><button onclick="hapusGuru(${idx})" style="background:red; color:white; width:auto; padding:5px;">Hapus</button></td></tr>`;
+            selectGuru.innerHTML += `<option value="${idx}">${g.nama}</option>`;
+        });
+
+        // Refresh Table Rekap
+        const listRekap = document.getElementById('list-rekap');
+        listRekap.innerHTML = '';
+        db.rekapGaji.forEach(r => {
+            listRekap.innerHTML += `<tr><td>${r.tgl}</td><td>${r.guru}</td><td>${r.tipe}</td><td>Rp ${r.potongan.toLocaleString()}</td><td>Rp ${r.total.toLocaleString()}</td></tr>`;
+        });
+    }
+
+    function hapusGuru(idx) {
+        db.guru.splice(idx, 1);
+        saveToLocal();
+        refreshAll();
+    }
+
+    // --- PDF EXPORT ---
+    function exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.text("LAPORAN REKAPITULASI GAJI GURU", 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Dicetak pada: ${new Date().toLocaleString()}`, 14, 22);
+
+        const rows = db.rekapGaji.map(r => [r.tgl, r.guru, r.tipe, r.potongan, r.total]);
+        
+        doc.autoTable({
+            head: [['Tanggal', 'Nama Guru', 'Keterangan', 'Potongan', 'Total Gaji']],
+            body: rows,
+            startY: 30
+        });
+
+        doc.save("rekap-gaji-sekolah.pdf");
+    }
+
+    // --- BACKUP & RESTORE ---
+    function downloadBackup() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "backup_sekolah_" + Date.now() + ".json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function restoreData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                db = importedData;
+                saveToLocal();
+                refreshAll();
+                alert("Data berhasil dipulihkan!");
+            } catch (err) {
+                alert("File tidak valid!");
             }
-        },
-        backup: () => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
-            const dlAnchorElem = document.createElement('a');
-            dlAnchorElem.setAttribute("href", dataStr);
-            dlAnchorElem.setAttribute("download", "backup_siskeu.json");
-            dlAnchorElem.click();
-        },
-        restore: (event) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                db = JSON.parse(e.target.result);
-                saveDB();
-                alert('Data berhasil di-restore!');
-            };
-            reader.readAsText(event.target.files[0]);
-        }
-    };
-
-    // --- SALARY MODULE ---
-    const salary = {
-        add: () => {
-            const nama = document.getElementById('gaji-nama').value;
-            const pokok = parseInt(document.getElementById('gaji-pokok').value) || 0;
-            const tipe = document.getElementById('gaji-tipe').value;
-            const pot = parseInt(document.getElementById('gaji-potongan').value) || 0;
-            
-            let bonus = 0;
-            if(tipe === 'Guru Pengganti Full') bonus = 50000;
-            if(tipe === 'Selingan') bonus = 25000;
-
-            const total = pokok + bonus - pot;
-
-            db.gaji.push({
-                tgl: new Date().toISOString(),
-                nama, tipe, pot, total
-            });
-            saveDB();
-        },
-        calcRekap: (months) => {
-            const now = new Date();
-            const filtered = db.gaji.filter(g => {
-                const gDate = new Date(g.tgl);
-                const diff = (now.getFullYear() - gDate.getFullYear()) * 12 + (now.getMonth() - gDate.getMonth());
-                return diff < months;
-            });
-            return filtered.reduce((a, b) => a + b.total, 0);
-        }
-    };
-
-    // --- RENDERER ---
-    function renderAll() {
-        // Render Guru Dropdown & List
-        const gList = document.getElementById('list-guru');
-        const gSelect = document.getElementById('gaji-nama');
-        gList.innerHTML = ''; gSelect.innerHTML = '';
-        db.guru.forEach(g => {
-            gList.innerHTML += `<li class="list-group-item d-flex justify-content-between">${g.nama} <button class="btn btn-danger btn-sm" onclick="db.guru = db.guru.filter(x => x.id !== ${g.id}); saveDB()">Hapus</button></li>`;
-            gSelect.innerHTML += `<option>${g.nama}</option>`;
-        });
-
-        // Render Gaji Table
-        const sList = document.getElementById('list-gaji');
-        sList.innerHTML = '';
-        db.gaji.forEach(s => {
-            sList.innerHTML += `<tr>
-                <td>${new Date(s.tgl).toLocaleDateString()}</td>
-                <td>${s.nama}</td>
-                <td>${s.tipe}</td>
-                <td class="text-danger">Rp ${s.pot.toLocaleString()}</td>
-                <td class="fw-bold">Rp ${s.total.toLocaleString()}</td>
-            </tr>`;
-        });
-
-        // Update Stats
-        document.getElementById('count-guru').innerText = db.guru.length;
-        document.getElementById('count-siswa').innerText = db.siswa.length;
-        document.getElementById('sum-gaji').innerText = "Rp " + salary.calcRekap(1).toLocaleString();
-        document.getElementById('rekap-1').innerText = "Rp " + salary.calcRekap(1).toLocaleString();
-        document.getElementById('rekap-3').innerText = "Rp " + salary.calcRekap(3).toLocaleString();
-        document.getElementById('rekap-6').innerText = "Rp " + salary.calcRekap(6).toLocaleString();
+        };
+        reader.readAsText(file);
     }
-
-    window.onload = () => { if(localStorage.getItem('isLogged')) auth.login(); };
 </script>
-
 </body>
 </html>
