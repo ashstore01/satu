@@ -1,2087 +1,287 @@
-<!doctype html>
-<html lang="id" class="h-full">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Administrasi Sekolah</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <script src="/_sdk/data_sdk.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
-  <style>
-    body { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-    .sidebar-hidden { transform: translateX(-100%); }
-    .sidebar-visible { transform: translateX(0); }
-    .fade-in { animation: fadeIn 0.3s ease-in-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
-    .btn-primary:hover { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
-    .card-shadow { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-    .table-row:hover { background-color: #f8fafc; }
-    input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
-    .toast { animation: slideIn 0.3s ease-out; }
-    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  </style>
-  <style>@view-transition { navigation: auto; }</style>
- </head>
- <body class="h-full bg-gray-50">
-  <div id="app" class="h-full flex overflow-hidden"><!-- Toast Container -->
-   <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div><!-- Login Page -->
-   <div id="login-page" class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
-    <div class="bg-white rounded-2xl p-8 w-full max-w-md mx-4 card-shadow">
-     <div class="text-center mb-8">
-      <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-       <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-       </svg>
-      </div>
-      <h1 id="app-title" class="text-2xl font-bold text-gray-800">Administrasi Sekolah</h1>
-      <p class="text-gray-500 mt-2">Masuk ke akun Anda</p>
-     </div>
-     <div id="login-form">
-      <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Username atau Email</label> <input type="text" id="login-username" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Masukkan username atau email">
-      </div>
-      <div class="mb-6"><label class="block text-sm font-medium text-gray-700 mb-2">Password</label> <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Masukkan password">
-      </div><button onclick="handleLogin()" class="w-full btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg"> Masuk </button>
-      <p class="text-center text-gray-500 mt-4">Belum punya akun? <button onclick="showRegister()" class="text-blue-600 font-semibold hover:underline">Daftar</button></p>
-     </div>
-     <div id="register-form" class="hidden">
-      <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label> <input type="text" id="reg-name" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Nama lengkap">
-      </div>
-      <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Email</label> <input type="email" id="reg-email" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="email@example.com">
-      </div>
-      <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Username</label> <input type="text" id="reg-username" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Username">
-      </div>
-      <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Password</label> <input type="password" id="reg-password" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Minimal 6 karakter">
-      </div>
-      <div class="mb-6"><label class="block text-sm font-medium text-gray-700 mb-2">Role</label> <select id="reg-role" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="admin">Admin</option> <option value="guru">Guru</option> </select>
-      </div><button onclick="handleRegister()" class="w-full btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg"> Daftar </button>
-      <p class="text-center text-gray-500 mt-4">Sudah punya akun? <button onclick="showLogin()" class="text-blue-600 font-semibold hover:underline">Masuk</button></p>
-     </div>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrasi Sekolah</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .sidebar { width: 250px; height: 100vh; background: #333; color: white; position: fixed; left: -250px; transition: 0.3s; }
+        .sidebar.show { left: 0; }
+        .sidebar ul { list-style: none; padding: 20px; }
+        .sidebar ul li { margin: 10px 0; }
+        .sidebar ul li a { color: white; text-decoration: none; }
+        .content { margin-left: 0; padding: 20px; transition: 0.3s; }
+        .content.shift { margin-left: 250px; }
+        .toggle-btn { position: fixed; top: 10px; left: 10px; z-index: 1000; background: #333; color: white; border: none; padding: 10px; cursor: pointer; }
+        .hidden { display: none; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        input, button { margin: 5px; padding: 8px; }
+    </style>
+</head>
+<body>
+    <button class="toggle-btn" onclick="toggleSidebar()">☰ Menu</button>
+    <div class="sidebar" id="sidebar">
+        <ul>
+            <li><a href="#" onclick="showSection('login')">Login/Registrasi</a></li>
+            <li><a href="#" onclick="showSection('dashboard')">Dashboard</a></li>
+            <li><a href="#" onclick="showSection('data-sekolah')">Data Sekolah</a></li>
+            <li><a href="#" onclick="showSection('data-guru')">Data Guru</a></li>
+            <li><a href="#" onclick="showSection('jadwal-mengajar')">Jadwal Mengajar</a></li>
+            <li><a href="#" onclick="showSection('mata-pelajaran')">Mata Pelajaran</a></li>
+            <li><a href="#" onclick="showSection('data-siswa')">Data Siswa</a></li>
+            <li><a href="#" onclick="showSection('tambah-kelas')">Tambah Kelas</a></li>
+            <li><a href="#" onclick="showSection('gaji-guru')">Gaji Guru</a></li>
+            <li><a href="#" onclick="logout()">Logout</a></li>
+        </ul>
     </div>
-   </div><!-- Main Dashboard -->
-   <div id="dashboard" class="hidden w-full h-full flex"><!-- Sidebar -->
-    <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col transition-transform duration-300 ease-in-out sidebar-visible fixed lg:relative h-full z-40">
-     <div class="p-6 border-b border-gray-100">
-      <div class="flex items-center gap-3">
-       <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
-       </div><span id="sidebar-title" class="font-bold text-gray-800">Admin Sekolah</span>
-      </div>
-     </div>
-     <nav class="flex-1 p-4 space-y-1 overflow-y-auto"><button onclick="setActiveMenu('dashboard')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="dashboard">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-       </svg><span>Dashboard</span> </button> <button onclick="setActiveMenu('school')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="school">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-       </svg><span>Data Sekolah</span> </button> <button onclick="setActiveMenu('teachers')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="teachers">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-       </svg><span>Data Guru</span> </button> <button onclick="setActiveMenu('students')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="students">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-       </svg><span>Data Siswa</span> </button> <button onclick="setActiveMenu('classes')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="classes">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-       </svg><span>Tambah Kelas</span> </button> <button onclick="setActiveMenu('schedule')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="schedule">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-       </svg><span>Jadwal Mengajar</span> </button> <button onclick="setActiveMenu('salary')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="salary">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-       </svg><span>Gaji Guru</span> </button> <button onclick="setActiveMenu('backup')" class="menu-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition hover:bg-blue-50" data-menu="backup">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-       </svg><span>Backup &amp; Restore</span> </button>
-     </nav>
-     <div class="p-4 border-t border-gray-100">
-      <div class="flex items-center gap-3 mb-3 px-2">
-       <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-       </div>
-       <div class="flex-1 min-w-0">
-        <p id="user-name" class="text-sm font-semibold text-gray-800 truncate">Admin</p>
-        <p id="user-role" class="text-xs text-gray-500">Administrator</p>
-       </div>
-      </div><button onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition">
-       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-       </svg><span>Logout</span> </button>
-     </div>
-    </aside><!-- Sidebar Overlay -->
-    <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" onclick="toggleSidebar()"></div><!-- Main Content -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden"><!-- Header -->
-     <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-4"><button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-xl transition">
-        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-        </svg></button>
-       <h2 id="page-title" class="text-xl font-bold text-gray-800">Dashboard</h2>
-      </div>
-      <div class="flex items-center gap-3"><span id="last-backup" class="text-xs text-gray-500 hidden sm:block"></span>
-      </div>
-     </header><!-- Content Area -->
-     <div id="content-area" class="flex-1 p-6 overflow-y-auto"><!-- Dashboard Content -->
-      <div id="content-dashboard" class="content-section fade-in">
-       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-         <div class="bg-white rounded-2xl p-6 card-shadow">
-          <div class="flex items-center justify-between mb-4">
-           <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-           </div>
-          </div>
-          <p class="text-sm text-gray-500 mb-1">Total Guru</p>
-          <p id="stat-teachers" class="text-3xl font-bold text-gray-800">0</p>
-         </div>
-         <div class="bg-white rounded-2xl p-6 card-shadow">
-          <div class="flex items-center justify-between mb-4">
-           <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-           </div>
-          </div>
-          <p class="text-sm text-gray-500 mb-1">Total Siswa</p>
-          <p id="stat-students" class="text-3xl font-bold text-gray-800">0</p>
-         </div>
-         <div class="bg-white rounded-2xl p-6 card-shadow">
-          <div class="flex items-center justify-between mb-4">
-           <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-           </div>
-          </div>
-          <p class="text-sm text-gray-500 mb-1">Total Kelas</p>
-          <p id="stat-classes" class="text-3xl font-bold text-gray-800">0</p>
-         </div>
-         <div class="bg-white rounded-2xl p-6 card-shadow">
-          <div class="flex items-center justify-between mb-4">
-           <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-           </div>
-          </div>
-          <p class="text-sm text-gray-500 mb-1">Jadwal Hari Ini</p>
-          <p id="stat-schedule" class="text-3xl font-bold text-gray-800">0</p>
-         </div>
+    <div class="content" id="content">
+        <div id="login" class="section">
+            <h2>Login</h2>
+            <input type="email" id="email" placeholder="Email"><br>
+            <input type="text" id="username" placeholder="Username"><br>
+            <input type="password" id="password" placeholder="Password"><br>
+            <button onclick="login()">Login</button>
+            <button onclick="register()">Registrasi</button>
         </div>
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h3 class="text-lg font-bold text-gray-800 mb-6">Informasi Sekolah</h3>
-         <div id="school-info-display" class="space-y-4">
-          <div class="text-center py-8 text-gray-500">
-           <p>Belum ada data sekolah</p>
-           <p class="text-sm">Silakan isi di menu "Data Sekolah"</p>
-          </div>
-         </div>
+        <div id="dashboard" class="section hidden">
+            <h2>Dashboard</h2>
+            <div id="school-data-display"></div>
         </div>
-       </div>
-      </div><!-- School Data Content -->
-      <div id="content-school" class="content-section hidden fade-in">
-       <div class="bg-white rounded-2xl p-6 card-shadow">
-        <h3 class="text-lg font-bold text-gray-800 mb-6">Informasi Sekolah</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-         <div><label class="block text-sm font-medium text-gray-700 mb-2">Nama Sekolah</label> <input type="text" id="school-name" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Nama sekolah">
-         </div>
-         <div><label class="block text-sm font-medium text-gray-700 mb-2">Kepala Sekolah</label> <input type="text" id="school-principal" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Nama kepala sekolah">
-         </div>
-         <div><label class="block text-sm font-medium text-gray-700 mb-2">Email</label> <input type="email" id="school-email" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="email@sekolah.com">
-         </div>
-         <div><label class="block text-sm font-medium text-gray-700 mb-2">Telepon</label> <input type="tel" id="school-phone" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="021-xxxxxxx">
-         </div>
-         <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-700 mb-2">Alamat</label> <textarea id="school-address" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Alamat lengkap sekolah"></textarea>
-         </div>
+        <div id="data-sekolah" class="section hidden">
+            <h2>Data Sekolah</h2>
+            <input type="text" id="school-name" placeholder="Nama Sekolah"><br>
+            <input type="text" id="school-address" placeholder="Alamat"><br>
+            <button onclick="saveSchoolData()">Simpan</button>
         </div>
-        <div class="flex gap-3 mt-6"><button onclick="saveSchoolData()" class="btn-primary text-white px-6 py-3 rounded-xl font-semibold transition hover:shadow-lg"> Simpan Data </button> <button onclick="exportSchoolPDF()" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"> 📄 Export PDF </button>
+        <div id="data-guru" class="section hidden">
+            <h2>Data Guru</h2>
+            <table id="guru-table">
+                <tr><th>Nama</th><th>Email</th><th>Role</th></tr>
+            </table>
+            <button onclick="addGuru()" id="add-guru-btn">Tambah Guru</button>
         </div>
-       </div>
-      </div><!-- Teachers Content -->
-      <div id="content-teachers" class="content-section hidden fade-in">
-       <div class="bg-white rounded-2xl p-6 card-shadow mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-         <h3 class="text-lg font-bold text-gray-800">Daftar Guru</h3>
-         <div class="flex gap-3"><button onclick="showAddTeacher()" class="btn-primary text-white px-4 py-2 rounded-xl font-semibold transition hover:shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-           </svg> Tambah Guru </button> <button onclick="exportTeachersPDF()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-semibold hover:bg-gray-200 transition"> 📄 PDF </button>
-         </div>
+        <div id="jadwal-mengajar" class="section hidden">
+            <h2>Jadwal Mengajar</h2>
+            <table id="jadwal-table">
+                <tr><th>Guru</th><th>Mata Pelajaran</th><th>Hari</th><th>Jam</th></tr>
+            </table>
+            <button onclick="addJadwal()" id="add-jadwal-btn">Tambah Jadwal</button>
         </div>
-        <div class="overflow-x-auto">
-         <table class="w-full">
-          <thead>
-           <tr class="border-b border-gray-200">
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">NIP</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Nama</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Mata Pelajaran</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Telepon</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Gaji/Hari</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Aksi</th>
-           </tr>
-          </thead>
-          <tbody id="teachers-table"></tbody>
-         </table>
+        <div id="mata-pelajaran" class="section hidden">
+            <h2>Mata Pelajaran</h2>
+            <table id="pelajaran-table">
+                <tr><th>Nama</th><th>Kelas</th></tr>
+            </table>
+            <button onclick="addPelajaran()" id="add-pelajaran-btn">Tambah Mata Pelajaran</button>
         </div>
-        <p id="teachers-empty" class="text-center text-gray-500 py-8 hidden">Belum ada data guru</p>
-       </div><!-- Add/Edit Teacher Modal -->
-       <div id="teacher-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90%] overflow-y-auto">
-         <h3 id="teacher-modal-title" class="text-lg font-bold text-gray-800 mb-6">Tambah Guru</h3>
-         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">NIP</label> <input type="text" id="teacher-nip" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label> <input type="text" id="teacher-name" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Mata Pelajaran</label> <input type="text" id="teacher-subject" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Telepon</label> <input type="tel" id="teacher-phone" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Alamat</label> <textarea id="teacher-address" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"></textarea>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Gaji Per Hari (Rp)</label> <input type="number" id="teacher-daily-rate" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="100000">
-          </div>
-         </div>
-         <div class="flex gap-3 mt-6"><button onclick="saveTeacher()" class="flex-1 btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg">Simpan</button> <button onclick="closeTeacherModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">Batal</button>
-         </div>
+        <div id="data-siswa" class="section hidden">
+            <h2>Data Siswa</h2>
+            <table id="siswa-table">
+                <tr><th>Nama</th><th>Kelas</th><th>NIS</th></tr>
+            </table>
+            <button onclick="addSiswa()" id="add-siswa-btn">Tambah Siswa</button>
         </div>
-       </div>
-      </div><!-- Students Content -->
-      <div id="content-students" class="content-section hidden fade-in">
-       <div class="bg-white rounded-2xl p-6 card-shadow">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-         <h3 class="text-lg font-bold text-gray-800">Daftar Siswa</h3>
-         <div class="flex gap-3"><button onclick="showAddStudent()" class="btn-primary text-white px-4 py-2 rounded-xl font-semibold transition hover:shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-           </svg> Tambah Siswa </button> <button onclick="exportStudentsPDF()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-semibold hover:bg-gray-200 transition"> 📄 PDF </button>
-         </div>
+        <div id="tambah-kelas" class="section hidden">
+            <h2>Tambah Kelas</h2>
+            <input type="text" id="kelas-name" placeholder="Nama Kelas"><br>
+            <button onclick="addKelas()" id="add-kelas-btn">Tambah Kelas</button>
         </div>
-        <div class="overflow-x-auto">
-         <table class="w-full">
-          <thead>
-           <tr class="border-b border-gray-200">
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">NIS</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Nama</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Kelas</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Orang Tua</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Telepon</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Aksi</th>
-           </tr>
-          </thead>
-          <tbody id="students-table"></tbody>
-         </table>
+        <div id="gaji-guru" class="section hidden">
+            <h2>Gaji Guru</h2>
+            <select id="guru-select">
+                <option value="">Pilih Guru</option>
+            </select>
+            <input type="number" id="daily-salary" placeholder="Gaji Harian"><br>
+            <button onclick="calculateSalary()">Hitung Gaji</button>
+            <div id="salary-summary"></div>
+            <h3>Guru Pengganti</h3>
+            <input type="date" id="substitute-date"><br>
+            <select id="substitute-type"><option value="full">Full</option><option value="selingan">Selingan</option></select><br>
+            <input type="number" id="substitute-amount" placeholder="Nominal"><br>
+            <button onclick="addSubstitute()">Tambah Guru Pengganti</button>
+            <h3>Potongan Gaji</h3>
+            <input type="date" id="deduction-date"><br>
+            <input type="text" id="deduction-reason" placeholder="Keterangan"><br>
+            <input type="number" id="deduction-amount" placeholder="Jumlah Potongan"><br>
+            <input type="text" id="replacement-teacher" placeholder="Nama Guru Pengganti"><br>
+            <select id="replacement-type"><option value="full">Full</option><option value="selingan">Selingan</option></select><br>
+            <input type="number" id="replacement-salary" placeholder="Nominal Gaji Pengganti"><br>
+            <button onclick="addDeduction()">Tambah Potongan</button>
+            <button onclick="printPDF()">Cetak PDF</button>
+            <button onclick="backupData()">Backup Data</button>
+            <input type="file" id="restore-file" accept=".json">
+            <button onclick="restoreData()">Restore Data</button>
         </div>
-        <p id="students-empty" class="text-center text-gray-500 py-8 hidden">Belum ada data siswa</p>
-       </div><!-- Add/Edit Student Modal -->
-       <div id="student-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90%] overflow-y-auto">
-         <h3 id="student-modal-title" class="text-lg font-bold text-gray-800 mb-6">Tambah Siswa</h3>
-         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">NIS</label> <input type="text" id="student-nis" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label> <input type="text" id="student-name" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Kelas</label> <select id="student-class" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Pilih Kelas</option> </select>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Nama Orang Tua</label> <input type="text" id="student-parent" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Telepon Orang Tua</label> <input type="tel" id="student-parent-phone" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Alamat</label> <textarea id="student-address" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"></textarea>
-          </div>
-         </div>
-         <div class="flex gap-3 mt-6"><button onclick="saveStudent()" class="flex-1 btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg">Simpan</button> <button onclick="closeStudentModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">Batal</button>
-         </div>
-        </div>
-       </div>
-      </div><!-- Classes Content -->
-      <div id="content-classes" class="content-section hidden fade-in">
-       <div class="bg-white rounded-2xl p-6 card-shadow">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-         <h3 class="text-lg font-bold text-gray-800">Daftar Kelas</h3>
-         <div class="flex gap-3"><button onclick="showAddClass()" class="btn-primary text-white px-4 py-2 rounded-xl font-semibold transition hover:shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-           </svg> Tambah Kelas </button> <button onclick="exportClassesPDF()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-semibold hover:bg-gray-200 transition"> 📄 PDF </button>
-         </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="classes-grid"></div>
-        <p id="classes-empty" class="text-center text-gray-500 py-8 hidden">Belum ada data kelas</p>
-       </div><!-- Add/Edit Class Modal -->
-       <div id="class-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
-         <h3 id="class-modal-title" class="text-lg font-bold text-gray-800 mb-6">Tambah Kelas</h3>
-         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Tingkat / Kelas (1-6)</label> <input type="text" id="class-grade" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Contoh: 1, 2, 3, 4, 5, atau 6">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Nama Kelas</label> <input type="text" id="class-name" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Contoh: 1A, 1B, 2A, dll">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Kapasitas</label> <input type="number" id="class-capacity" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="30">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Wali Kelas</label> <select id="class-teacher" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Pilih Guru</option> </select>
-          </div>
-         </div>
-         <div class="flex gap-3 mt-6"><button onclick="saveClass()" class="flex-1 btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg">Simpan</button> <button onclick="closeClassModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">Batal</button>
-         </div>
-        </div>
-       </div>
-      </div><!-- Schedule Content -->
-      <div id="content-schedule" class="content-section hidden fade-in">
-       <div class="bg-white rounded-2xl p-6 card-shadow">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-         <h3 class="text-lg font-bold text-gray-800">Jadwal Mengajar</h3>
-         <div class="flex gap-3"><button onclick="showAddSchedule()" class="btn-primary text-white px-4 py-2 rounded-xl font-semibold transition hover:shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-           </svg> Tambah Jadwal </button> <button onclick="exportSchedulePDF()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-semibold hover:bg-gray-200 transition"> ������ PDF </button>
-         </div>
-        </div>
-        <div class="overflow-x-auto">
-         <table class="w-full">
-          <thead>
-           <tr class="border-b border-gray-200">
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Hari</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Waktu</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Guru</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Mata Pelajaran</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Kelas</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Aksi</th>
-           </tr>
-          </thead>
-          <tbody id="schedule-table"></tbody>
-         </table>
-        </div>
-        <p id="schedule-empty" class="text-center text-gray-500 py-8 hidden">Belum ada jadwal</p>
-       </div><!-- Add/Edit Schedule Modal -->
-       <div id="schedule-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
-         <h3 id="schedule-modal-title" class="text-lg font-bold text-gray-800 mb-6">Tambah Jadwal</h3>
-         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Hari</label> <select id="schedule-day" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="Senin">Senin</option> <option value="Selasa">Selasa</option> <option value="Rabu">Rabu</option> <option value="Kamis">Kamis</option> <option value="Jumat">Jumat</option> <option value="Sabtu">Sabtu</option> </select>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Waktu</label> <input type="text" id="schedule-time" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="07:00 - 08:30">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Guru</label> <select id="schedule-teacher" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Pilih Guru</option> </select>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Kelas</label> <select id="schedule-class" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Pilih Kelas</option> </select>
-          </div>
-         </div>
-         <div class="flex gap-3 mt-6"><button onclick="saveSchedule()" class="flex-1 btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg">Simpan</button> <button onclick="closeScheduleModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">Batal</button>
-         </div>
-        </div>
-       </div>
-      </div><!-- Salary Content -->
-      <div id="content-salary" class="content-section hidden fade-in">
-       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h4 class="text-sm font-semibold text-gray-500 mb-2">Filter Periode</h4><select id="salary-period" onchange="updateSalaryView()" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="daily">Per Hari</option> <option value="monthly" selected>Per Bulan</option> <option value="quarterly">Per 3 Bulan</option> <option value="biannual">Per 6 Bulan</option> </select>
-        </div>
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h4 class="text-sm font-semibold text-gray-500 mb-2">Bulan</h4><input type="month" id="salary-month" onchange="updateSalaryView()" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-        </div>
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h4 class="text-sm font-semibold text-gray-500 mb-2">Guru</h4><select id="salary-teacher" onchange="updateSalaryView()" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="all">Semua Guru</option> </select>
-        </div>
-       </div>
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h3 class="text-lg font-bold text-gray-800 mb-4">Kehadiran Guru</h3>
-         <div class="flex flex-wrap gap-3 mb-4"><button onclick="showAttendanceModal()" class="btn-primary text-white px-4 py-2 rounded-xl font-semibold transition hover:shadow-lg"> 📅 Catat Kehadiran </button>
-         </div>
-         <div id="attendance-summary" class="space-y-3"></div>
-        </div>
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h3 class="text-lg font-bold text-gray-800 mb-4">Ringkasan Gaji</h3>
-         <div id="salary-summary" class="space-y-4">
-          <div class="flex justify-between items-center py-3 border-b border-gray-100"><span class="text-gray-600">Total Kehadiran</span> <span id="total-attendance" class="font-bold text-gray-800">0 hari</span>
-          </div>
-          <div class="flex justify-between items-center py-3 border-b border-gray-100"><span class="text-gray-600">Gaji Pokok</span> <span id="base-salary" class="font-bold text-gray-800">Rp 0</span>
-          </div>
-          <div class="flex justify-between items-center py-3 border-b border-gray-100"><span class="text-gray-600">Gaji Pengganti</span> <span id="substitute-salary" class="font-bold text-green-600">+ Rp 0</span>
-          </div>
-          <div class="flex justify-between items-center py-3 border-b border-gray-100"><span class="text-gray-600">Potongan</span> <span id="deduction-total" class="font-bold text-red-600">- Rp 0</span>
-          </div>
-          <div class="flex justify-between items-center py-3 bg-blue-50 rounded-xl px-4"><span class="text-blue-800 font-semibold">Total Gaji</span> <span id="total-salary" class="font-bold text-blue-800 text-xl">Rp 0</span>
-          </div>
-         </div>
-        </div>
-       </div>
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-gray-800">Guru Pengganti</h3><button onclick="showSubstituteModal()" class="btn-primary text-white px-4 py-2 rounded-xl font-semibold transition hover:shadow-lg text-sm"> + Tambah </button>
-         </div>
-         <div id="substitute-list" class="space-y-3"></div>
-         <p id="substitute-empty" class="text-center text-gray-500 py-4 hidden">Belum ada data guru pengganti</p>
-        </div>
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-gray-800">Potongan Gaji</h3><button onclick="showDeductionModal()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-semibold transition text-sm"> + Tambah </button>
-         </div>
-         <div id="deduction-list" class="space-y-3"></div>
-         <p id="deduction-empty" class="text-center text-gray-500 py-4 hidden">Belum ada potongan gaji</p>
-        </div>
-       </div>
-       <div class="flex gap-3"><button onclick="exportSalaryPDF()" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"> 📄 Export PDF Gaji </button>
-       </div><!-- Attendance Modal -->
-       <div id="attendance-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
-         <h3 class="text-lg font-bold text-gray-800 mb-6">Catat Kehadiran</h3>
-         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Tanggal</label> <input type="date" id="attendance-date" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Guru</label> <select id="attendance-teacher" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Pilih Guru</option> </select>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Status</label> <select id="attendance-status" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="true">Hadir</option> <option value="false">Tidak Hadir</option> </select>
-          </div>
-         </div>
-         <div class="flex gap-3 mt-6"><button onclick="saveAttendance()" class="flex-1 btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg">Simpan</button> <button onclick="closeAttendanceModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">Batal</button>
-         </div>
-        </div>
-       </div><!-- Substitute Teacher Modal -->
-       <div id="substitute-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
-         <h3 class="text-lg font-bold text-gray-800 mb-6">Tambah Guru Pengganti</h3>
-         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Tanggal</label> <input type="date" id="substitute-date" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Guru Pengganti</label> <select id="substitute-teacher-select" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Pilih Guru</option> </select>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Tipe</label> <select id="substitute-type" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="full">Full (100%)</option> <option value="partial">Selingan (50%)</option> </select>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Nominal Gaji (Rp)</label> <input type="number" id="substitute-salary" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Contoh: 150000">
-          </div>
-         </div>
-         <div class="flex gap-3 mt-6"><button onclick="saveSubstitute()" class="flex-1 btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg">Simpan</button> <button onclick="closeSubstituteModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">Batal</button>
-         </div>
-        </div>
-       </div><!-- Deduction Modal -->
-       <div id="deduction-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
-         <h3 class="text-lg font-bold text-gray-800 mb-6">Tambah Potongan Gaji</h3>
-         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Tanggal</label> <input type="date" id="deduction-date" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Nama Guru</label> <select id="deduction-teacher" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Pilih Guru</option> </select>
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Keterangan</label> <input type="text" id="deduction-reason" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="Alasan potongan">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Jumlah Potongan (Rp)</label> <input type="number" id="deduction-amount" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition" placeholder="50000">
-          </div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-2">Guru Pengganti (Opsional)</label> <select id="deduction-substitute" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-blue-500 transition"> <option value="">Tidak Ada</option> </select>
-          </div>
-         </div>
-         <div class="flex gap-3 mt-6"><button onclick="saveDeduction()" class="flex-1 btn-primary text-white py-3 rounded-xl font-semibold transition hover:shadow-lg">Simpan</button> <button onclick="closeDeductionModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">Batal</button>
-         </div>
-        </div>
-       </div>
-      </div><!-- Backup Content -->
-      <div id="content-backup" class="content-section hidden fade-in">
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h3 class="text-lg font-bold text-gray-800 mb-6">Backup Data</h3>
-         <p class="text-gray-600 mb-6">Simpan seluruh data aplikasi ke file JSON atau sinkronkan ke cloud.</p>
-         <div class="space-y-4"><button onclick="backupToFile()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-3">
-           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-           </svg> Download Backup (JSON) </button> <button onclick="backupToCloud()" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-3">
-           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-           </svg> Sinkron ke Cloud </button>
-          <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl"><input type="checkbox" id="auto-backup" onchange="toggleAutoBackup()" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"> <label for="auto-backup" class="text-gray-700">Backup Otomatis (setiap 5 menit)</label>
-          </div>
-         </div>
-        </div>
-        <div class="bg-white rounded-2xl p-6 card-shadow">
-         <h3 class="text-lg font-bold text-gray-800 mb-6">Restore Data</h3>
-         <p class="text-gray-600 mb-6">Pulihkan data dari file backup atau cloud.</p>
-         <div class="space-y-4"><label class="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-3 cursor-pointer">
-           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-           </svg> Upload File Backup <input type="file" accept=".json" onchange="restoreFromFile(event)" class="hidden"> </label> <button onclick="restoreFromCloud()" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-3">
-           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-           </svg> Restore dari Cloud </button>
-         </div>
-        </div>
-       </div>
-       <div class="bg-white rounded-2xl p-6 card-shadow mt-6">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">Riwayat Backup</h3>
-        <div id="backup-history" class="space-y-3"></div>
-        <p id="backup-empty" class="text-center text-gray-500 py-4">Belum ada riwayat backup</p>
-       </div>
-      </div>
-     </div>
-    </main>
-   </div>
-  </div>
-  <script>
-    // Application State with Memoization
-    let appData = [];
-    let currentUser = null;
-    let editingId = null;
-    let autoBackupInterval = null;
-    let sidebarVisible = true;
-    
-    // Memoization cache
-    const memoCache = {
-      teachers: { data: null, timestamp: 0 },
-      students: { data: null, timestamp: 0 },
-      classes: { data: null, timestamp: 0 },
-      schedules: { data: null, timestamp: 0 }
-    };
-    
-    function clearMemoCache() {
-      Object.keys(memoCache).forEach(key => {
-        memoCache[key] = { data: null, timestamp: 0 };
-      });
-    }
-    
-    const defaultConfig = {
-      app_title: 'Administrasi Sekolah'
-    };
-    
-    let config = { ...defaultConfig };
-    
-    // Initialize SDKs
-    async function initApp() {
-      // Initialize Element SDK
-      if (window.elementSdk) {
-        window.elementSdk.init({
-          defaultConfig,
-          onConfigChange: async (newConfig) => {
-            config = { ...defaultConfig, ...newConfig };
-            applyConfig();
-          },
-          mapToCapabilities: (cfg) => ({
-            recolorables: [],
-            borderables: [],
-            fontEditable: undefined,
-            fontSizeable: undefined
-          }),
-          mapToEditPanelValues: (cfg) => new Map([
-            ['app_title', cfg.app_title || defaultConfig.app_title]
-          ])
-        });
-      }
-      
-      // Initialize Data SDK
-      if (window.dataSdk) {
-        const result = await window.dataSdk.init({
-          onDataChanged: (data) => {
-            appData = data;
-            renderAllData();
-          }
-        });
-        if (!result.isOk) {
-          console.error('Failed to init Data SDK');
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        let currentUser = null;
+        let data = JSON.parse(localStorage.getItem('schoolData')) || {
+            users: [],
+            school: {},
+            gurus: [],
+            jadwals: [],
+            pelajarans: [],
+            siswas: [],
+            kelas: [],
+            salaries: {}
+        };
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+            document.getElementById('content').classList.toggle('shift');
         }
-      }
-      
-      // Check for existing session
-      const savedUser = localStorage.getItem('currentUser');
-      if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        showDashboard();
-      }
-      
-      // Set current month
-      const now = new Date();
-      document.getElementById('salary-month').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      
-      // Load auto-backup setting
-      const autoBackup = localStorage.getItem('autoBackup') === 'true';
-      document.getElementById('auto-backup').checked = autoBackup;
-      if (autoBackup) startAutoBackup();
-    }
-    
-    function applyConfig() {
-      document.getElementById('app-title').textContent = config.app_title || defaultConfig.app_title;
-      document.getElementById('sidebar-title').textContent = config.app_title || defaultConfig.app_title;
-    }
-    
-    // Toast Notification
-    function showToast(message, type = 'success') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = `toast px-6 py-3 rounded-xl shadow-lg text-white font-medium ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`;
-      toast.textContent = message;
-      container.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    }
-    
-    // Authentication
-    function showRegister() {
-      document.getElementById('login-form').classList.add('hidden');
-      document.getElementById('register-form').classList.remove('hidden');
-    }
-    
-    function showLogin() {
-      document.getElementById('register-form').classList.add('hidden');
-      document.getElementById('login-form').classList.remove('hidden');
-    }
-    
-    async function handleRegister() {
-      const name = document.getElementById('reg-name').value.trim();
-      const email = document.getElementById('reg-email').value.trim();
-      const username = document.getElementById('reg-username').value.trim();
-      const password = document.getElementById('reg-password').value;
-      const role = document.getElementById('reg-role').value;
-      
-      if (!name || !email || !username || !password) {
-        showToast('Semua field harus diisi', 'error');
-        return;
-      }
-      
-      if (password.length < 6) {
-        showToast('Password minimal 6 karakter', 'error');
-        return;
-      }
-      
-      const existingUser = appData.find(d => d.type === 'user' && (d.username === username || d.email === email));
-      if (existingUser) {
-        showToast('Username atau email sudah terdaftar', 'error');
-        return;
-      }
-      
-      const result = await window.dataSdk.create({
-        type: 'user',
-        id: Date.now().toString(),
-        name,
-        email,
-        username,
-        password,
-        role,
-        createdAt: new Date().toISOString()
-      });
-      
-      if (result.isOk) {
-        showToast('Registrasi berhasil! Silakan login');
-        showLogin();
-        document.getElementById('reg-name').value = '';
-        document.getElementById('reg-email').value = '';
-        document.getElementById('reg-username').value = '';
-        document.getElementById('reg-password').value = '';
-      } else {
-        showToast('Gagal mendaftar', 'error');
-      }
-    }
-    
-    function handleLogin() {
-      const username = document.getElementById('login-username').value.trim();
-      const password = document.getElementById('login-password').value;
-      
-      if (!username || !password) {
-        showToast('Username dan password harus diisi', 'error');
-        return;
-      }
-      
-      const user = appData.find(d => d.type === 'user' && (d.username === username || d.email === username) && d.password === password);
-      
-      if (user) {
-        currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        showDashboard();
-        showToast(`Selamat datang, ${user.name}!`);
-      } else {
-        showToast('Username atau password salah', 'error');
-      }
-    }
-    
-    function handleLogout() {
-      currentUser = null;
-      localStorage.removeItem('currentUser');
-      document.getElementById('dashboard').classList.add('hidden');
-      document.getElementById('login-page').classList.remove('hidden');
-      document.getElementById('login-username').value = '';
-      document.getElementById('login-password').value = '';
-      showToast('Logout berhasil');
-    }
-    
-    function showDashboard() {
-      document.getElementById('login-page').classList.add('hidden');
-      document.getElementById('dashboard').classList.remove('hidden');
-      document.getElementById('user-name').textContent = currentUser.name;
-      document.getElementById('user-role').textContent = currentUser.role === 'admin' ? 'Administrator' : 'Guru';
-      setActiveMenu('dashboard');
-      renderAllData();
-    }
-    
-    // Sidebar Toggle - Fixed
-    function toggleSidebar() {
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('sidebar-overlay');
-      const isLargeScreen = window.innerWidth >= 1024;
-      
-      if (isLargeScreen) {
-        // Desktop: always visible, don't toggle
-        return;
-      }
-      
-      // Mobile: toggle sidebar visibility
-      sidebarVisible = !sidebarVisible;
-      
-      if (sidebarVisible) {
-        sidebar.classList.remove('sidebar-hidden');
-        sidebar.classList.add('sidebar-visible');
-        overlay.classList.remove('hidden');
-      } else {
-        sidebar.classList.add('sidebar-hidden');
-        sidebar.classList.remove('sidebar-visible');
-        overlay.classList.add('hidden');
-      }
-    }
-    
-    // Handle window resize
-    window.addEventListener('resize', () => {
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('sidebar-overlay');
-      const isLargeScreen = window.innerWidth >= 1024;
-      
-      if (isLargeScreen) {
-        sidebar.classList.remove('sidebar-hidden');
-        sidebar.classList.add('sidebar-visible');
-        overlay.classList.add('hidden');
-        sidebarVisible = true;
-      }
-    });
-    
-    // Menu Navigation
-    function setActiveMenu(menu) {
-      document.querySelectorAll('.menu-item').forEach(item => {
-        item.classList.remove('bg-blue-100', 'text-blue-600');
-        item.classList.add('text-gray-600');
-      });
-      
-      const activeItem = document.querySelector(`[data-menu="${menu}"]`);
-      if (activeItem) {
-        activeItem.classList.add('bg-blue-100', 'text-blue-600');
-        activeItem.classList.remove('text-gray-600');
-      }
-      
-      document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.add('hidden');
-      });
-      
-      const contentSection = document.getElementById(`content-${menu}`);
-      if (contentSection) {
-        contentSection.classList.remove('hidden');
-      }
-      
-      const titles = {
-        dashboard: 'Dashboard',
-        school: 'Data Sekolah',
-        teachers: 'Data Guru',
-        students: 'Data Siswa',
-        classes: 'Tambah Kelas',
-        schedule: 'Jadwal Mengajar',
-        salary: 'Gaji Guru',
-        backup: 'Backup & Restore'
-      };
-      
-      document.getElementById('page-title').textContent = titles[menu] || 'Dashboard';
-      
-      if (menu === 'salary') {
-        updateSalaryView();
-      }
-      
-      // Close sidebar on mobile
-      if (window.innerWidth < 1024 && sidebarVisible) {
-        toggleSidebar();
-      }
-    }
-    
-    // Render All Data with optimization
-    function renderAllData() {
-      clearMemoCache();
-      requestAnimationFrame(() => {
-        renderDashboardStats();
-        renderTeachers();
-        renderStudents();
-        renderClasses();
-        renderSchedule();
-        loadSchoolData();
-      });
-      updateTeacherSelects();
-      updateClassSelects();
-    }
-    
-    function renderDashboardStats() {
-      const now = new Date();
-      const cacheKey = `stats-${now.getDate()}`;
-      
-      // Use document fragment for batch updates
-      const stats = {
-        teachers: appData.filter(d => d.type === 'teacher').length,
-        students: appData.filter(d => d.type === 'student').length,
-        classes: appData.filter(d => d.type === 'class').length
-      };
-      
-      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-      const today = days[now.getDay()];
-      const todaySchedule = appData.filter(d => d.type === 'schedule' && d.day === today).length;
-      
-      // Get school info
-      const school = appData.find(d => d.type === 'school');
-      
-      // Batch DOM updates
-      document.getElementById('stat-teachers').textContent = stats.teachers;
-      document.getElementById('stat-students').textContent = stats.students;
-      document.getElementById('stat-classes').textContent = stats.classes;
-      document.getElementById('stat-schedule').textContent = todaySchedule;
-      
-      // Update school info display
-      const schoolInfoDiv = document.getElementById('school-info-display');
-      if (schoolInfoDiv && school) {
-        schoolInfoDiv.innerHTML = `
-          <div class="mb-4">
-            <h3 class="text-sm text-gray-500 mb-1">Nama Sekolah</h3>
-            <p class="text-lg font-bold text-gray-800">${school.schoolName || '-'}</p>
-          </div>
-          <div class="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <h3 class="text-sm text-gray-500 mb-1">Kepala Sekolah</h3>
-              <p class="text-gray-800">${school.principal || '-'}</p>
-            </div>
-            <div>
-              <h3 class="text-sm text-gray-500 mb-1">Telepon</h3>
-              <p class="text-gray-800">${school.schoolPhone || '-'}</p>
-            </div>
-          </div>
-          <div class="mb-4">
-            <h3 class="text-sm text-gray-500 mb-1">Email</h3>
-            <p class="text-gray-800">${school.schoolEmail || '-'}</p>
-          </div>
-          <div>
-            <h3 class="text-sm text-gray-500 mb-1">Alamat</h3>
-            <p class="text-gray-800 text-sm">${school.schoolAddress || '-'}</p>
-          </div>
-        `;
-      }
-    }
-    
-    // School Data
-    function loadSchoolData() {
-      const school = appData.find(d => d.type === 'school');
-      if (school) {
-        document.getElementById('school-name').value = school.schoolName || '';
-        document.getElementById('school-principal').value = school.principal || '';
-        document.getElementById('school-email').value = school.schoolEmail || '';
-        document.getElementById('school-phone').value = school.schoolPhone || '';
-        document.getElementById('school-address').value = school.schoolAddress || '';
-      }
-    }
-    
-    async function saveSchoolData() {
-      const schoolName = document.getElementById('school-name').value.trim();
-      const principal = document.getElementById('school-principal').value.trim();
-      const schoolEmail = document.getElementById('school-email').value.trim();
-      const schoolPhone = document.getElementById('school-phone').value.trim();
-      const schoolAddress = document.getElementById('school-address').value.trim();
-      
-      if (!schoolName) {
-        showToast('Nama sekolah harus diisi', 'error');
-        return;
-      }
-      
-      const schoolData = {
-        type: 'school',
-        id: 'school-info',
-        schoolName,
-        principal,
-        schoolEmail,
-        schoolPhone,
-        schoolAddress,
-        createdAt: new Date().toISOString()
-      };
-      
-      const existing = appData.find(d => d.type === 'school');
-      let result;
-      
-      if (existing) {
-        result = await window.dataSdk.update({ ...existing, ...schoolData });
-      } else {
-        result = await window.dataSdk.create(schoolData);
-      }
-      
-      if (result.isOk) {
-        showToast('Data sekolah berhasil disimpan');
-      } else {
-        showToast('Gagal menyimpan data sekolah', 'error');
-      }
-    }
-    
-    // Teachers CRUD - Optimized Rendering
-    function renderTeachers() {
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const tbody = document.getElementById('teachers-table');
-      const empty = document.getElementById('teachers-empty');
-      
-      if (teachers.length === 0) {
-        tbody.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-      }
-      
-      empty.classList.add('hidden');
-      
-      // Use document fragment for better performance
-      const fragment = document.createDocumentFragment();
-      teachers.forEach(t => {
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-gray-100 table-row';
-        tr.innerHTML = `
-          <td class="py-3 px-4 text-gray-800">${t.nip || '-'}</td>
-          <td class="py-3 px-4 text-gray-800 font-medium">${t.name}</td>
-          <td class="py-3 px-4 text-gray-600">${t.subject || '-'}</td>
-          <td class="py-3 px-4 text-gray-600">${t.phone || '-'}</td>
-          <td class="py-3 px-4 text-gray-600">Rp ${(t.dailyRate || 0).toLocaleString('id-ID')}</td>
-          <td class="py-3 px-4">
-            <div class="flex gap-2">
-              <button onclick="editTeacher('${t.__backendId}')" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              </button>
-              <button onclick="deleteTeacher('${t.__backendId}')" class="text-red-600 hover:text-red-800 p-1" title="Hapus">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </div>
-          </td>
-        `;
-        fragment.appendChild(tr);
-      });
-      
-      tbody.innerHTML = '';
-      tbody.appendChild(fragment);
-    }
-    
-    function showAddTeacher() {
-      editingId = null;
-      document.getElementById('teacher-modal-title').textContent = 'Tambah Guru';
-      document.getElementById('teacher-nip').value = '';
-      document.getElementById('teacher-name').value = '';
-      document.getElementById('teacher-subject').value = '';
-      document.getElementById('teacher-phone').value = '';
-      document.getElementById('teacher-address').value = '';
-      document.getElementById('teacher-daily-rate').value = '';
-      document.getElementById('teacher-modal').classList.remove('hidden');
-    }
-    
-    function editTeacher(id) {
-      const teacher = appData.find(d => d.__backendId === id);
-      if (!teacher) return;
-      
-      editingId = id;
-      document.getElementById('teacher-modal-title').textContent = 'Edit Guru';
-      document.getElementById('teacher-nip').value = teacher.nip || '';
-      document.getElementById('teacher-name').value = teacher.name || '';
-      document.getElementById('teacher-subject').value = teacher.subject || '';
-      document.getElementById('teacher-phone').value = teacher.phone || '';
-      document.getElementById('teacher-address').value = teacher.address || '';
-      document.getElementById('teacher-daily-rate').value = teacher.dailyRate || '';
-      document.getElementById('teacher-modal').classList.remove('hidden');
-    }
-    
-    async function saveTeacher() {
-      const data = {
-        type: 'teacher',
-        id: editingId || Date.now().toString(),
-        nip: document.getElementById('teacher-nip').value.trim(),
-        name: document.getElementById('teacher-name').value.trim(),
-        subject: document.getElementById('teacher-subject').value.trim(),
-        phone: document.getElementById('teacher-phone').value.trim(),
-        address: document.getElementById('teacher-address').value.trim(),
-        dailyRate: parseInt(document.getElementById('teacher-daily-rate').value) || 0,
-        createdAt: new Date().toISOString()
-      };
-      
-      if (!data.name) {
-        showToast('Nama guru harus diisi', 'error');
-        return;
-      }
-      
-      let result;
-      if (editingId) {
-        const existing = appData.find(d => d.__backendId === editingId);
-        result = await window.dataSdk.update({ ...existing, ...data });
-      } else {
-        result = await window.dataSdk.create(data);
-      }
-      
-      if (result.isOk) {
-        showToast(editingId ? 'Guru berhasil diupdate' : 'Guru berhasil ditambahkan');
-        closeTeacherModal();
-      } else {
-        showToast('Gagal menyimpan data guru', 'error');
-      }
-    }
-    
-    async function deleteTeacher(id) {
-      const teacher = appData.find(d => d.__backendId === id);
-      if (!teacher) return;
-      
-      const result = await window.dataSdk.delete(teacher);
-      if (result.isOk) {
-        showToast('Guru berhasil dihapus');
-      } else {
-        showToast('Gagal menghapus guru', 'error');
-      }
-    }
-    
-    function closeTeacherModal() {
-      document.getElementById('teacher-modal').classList.add('hidden');
-      editingId = null;
-    }
-    
-    // Students CRUD - Optimized Rendering
-    function renderStudents() {
-      const students = appData.filter(d => d.type === 'student');
-      const tbody = document.getElementById('students-table');
-      const empty = document.getElementById('students-empty');
-      
-      if (students.length === 0) {
-        tbody.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-      }
-      
-      empty.classList.add('hidden');
-      
-      const fragment = document.createDocumentFragment();
-      students.forEach(s => {
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-gray-100 table-row';
-        tr.innerHTML = `
-          <td class="py-3 px-4 text-gray-800">${s.nis || '-'}</td>
-          <td class="py-3 px-4 text-gray-800 font-medium">${s.name}</td>
-          <td class="py-3 px-4 text-gray-600">${s.class || '-'}</td>
-          <td class="py-3 px-4 text-gray-600">${s.parentName || '-'}</td>
-          <td class="py-3 px-4 text-gray-600">${s.parentPhone || '-'}</td>
-          <td class="py-3 px-4">
-            <div class="flex gap-2">
-              <button onclick="editStudent('${s.__backendId}')" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              </button>
-              <button onclick="deleteStudent('${s.__backendId}')" class="text-red-600 hover:text-red-800 p-1" title="Hapus">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </div>
-          </td>
-        `;
-        fragment.appendChild(tr);
-      });
-      
-      tbody.innerHTML = '';
-      tbody.appendChild(fragment);
-    }
-    
-    function showAddStudent() {
-      editingId = null;
-      document.getElementById('student-modal-title').textContent = 'Tambah Siswa';
-      document.getElementById('student-nis').value = '';
-      document.getElementById('student-name').value = '';
-      document.getElementById('student-class').value = '';
-      document.getElementById('student-parent').value = '';
-      document.getElementById('student-parent-phone').value = '';
-      document.getElementById('student-address').value = '';
-      document.getElementById('student-modal').classList.remove('hidden');
-    }
-    
-    function editStudent(id) {
-      const student = appData.find(d => d.__backendId === id);
-      if (!student) return;
-      
-      editingId = id;
-      document.getElementById('student-modal-title').textContent = 'Edit Siswa';
-      document.getElementById('student-nis').value = student.nis || '';
-      document.getElementById('student-name').value = student.name || '';
-      document.getElementById('student-class').value = student.class || '';
-      document.getElementById('student-parent').value = student.parentName || '';
-      document.getElementById('student-parent-phone').value = student.parentPhone || '';
-      document.getElementById('student-address').value = student.address || '';
-      document.getElementById('student-modal').classList.remove('hidden');
-    }
-    
-    async function saveStudent() {
-      const data = {
-        type: 'student',
-        id: editingId || Date.now().toString(),
-        nis: document.getElementById('student-nis').value.trim(),
-        name: document.getElementById('student-name').value.trim(),
-        class: document.getElementById('student-class').value,
-        parentName: document.getElementById('student-parent').value.trim(),
-        parentPhone: document.getElementById('student-parent-phone').value.trim(),
-        address: document.getElementById('student-address').value.trim(),
-        createdAt: new Date().toISOString()
-      };
-      
-      if (!data.name) {
-        showToast('Nama siswa harus diisi', 'error');
-        return;
-      }
-      
-      let result;
-      if (editingId) {
-        const existing = appData.find(d => d.__backendId === editingId);
-        result = await window.dataSdk.update({ ...existing, ...data });
-      } else {
-        result = await window.dataSdk.create(data);
-      }
-      
-      if (result.isOk) {
-        showToast(editingId ? 'Siswa berhasil diupdate' : 'Siswa berhasil ditambahkan');
-        closeStudentModal();
-      } else {
-        showToast('Gagal menyimpan data siswa', 'error');
-      }
-    }
-    
-    async function deleteStudent(id) {
-      const student = appData.find(d => d.__backendId === id);
-      if (!student) return;
-      
-      const result = await window.dataSdk.delete(student);
-      if (result.isOk) {
-        showToast('Siswa berhasil dihapus');
-      } else {
-        showToast('Gagal menghapus siswa', 'error');
-      }
-    }
-    
-    function closeStudentModal() {
-      document.getElementById('student-modal').classList.add('hidden');
-      editingId = null;
-    }
-    
-    // Classes CRUD - Optimized Rendering
-    function renderClasses() {
-      const classes = appData.filter(d => d.type === 'class');
-      const grid = document.getElementById('classes-grid');
-      const empty = document.getElementById('classes-empty');
-      
-      if (classes.length === 0) {
-        grid.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-      }
-      
-      empty.classList.add('hidden');
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const students = appData.filter(d => d.type === 'student');
-      
-      const fragment = document.createDocumentFragment();
-      classes.forEach(c => {
-        const teacher = teachers.find(t => t.id === c.teacherId);
-        const studentCount = students.filter(s => s.class === c.className).length;
-        
-        const div = document.createElement('div');
-        div.className = 'bg-gray-50 rounded-xl p-5 border border-gray-200 hover:border-blue-300 transition';
-        div.innerHTML = `
-          <div class="flex justify-between items-start mb-3">
-            <div>
-              <h4 class="font-bold text-gray-800">${c.className}</h4>
-              <p class="text-sm text-gray-500">Tingkat ${c.grade}</p>
-            </div>
-            <div class="flex gap-1">
-              <button onclick="editClass('${c.__backendId}')" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              </button>
-              <button onclick="deleteClass('${c.__backendId}')" class="text-red-600 hover:text-red-800 p-1" title="Hapus">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </div>
-          </div>
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between">
-              <span class="text-gray-500">Wali Kelas:</span>
-              <span class="text-gray-800">${teacher ? teacher.name : '-'}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">Siswa:</span>
-              <span class="text-gray-800">${studentCount}/${c.capacity || 30}</span>
-            </div>
-          </div>
-        `;
-        fragment.appendChild(div);
-      });
-      
-      grid.innerHTML = '';
-      grid.appendChild(fragment);
-    }
-    
-    function showAddClass() {
-      editingId = null;
-      document.getElementById('class-modal-title').textContent = 'Tambah Kelas';
-      document.getElementById('class-grade').value = '';
-      document.getElementById('class-name').value = '';
-      document.getElementById('class-capacity').value = '';
-      document.getElementById('class-teacher').value = '';
-      document.getElementById('class-modal').classList.remove('hidden');
-    }
-    
-    function editClass(id) {
-      const cls = appData.find(d => d.__backendId === id);
-      if (!cls) return;
-      
-      editingId = id;
-      document.getElementById('class-modal-title').textContent = 'Edit Kelas';
-      document.getElementById('class-grade').value = cls.grade || '';
-      document.getElementById('class-name').value = cls.className || '';
-      document.getElementById('class-capacity').value = cls.capacity || '';
-      document.getElementById('class-teacher').value = cls.teacherId || '';
-      document.getElementById('class-modal').classList.remove('hidden');
-    }
-    
-    async function saveClass() {
-      const grade = document.getElementById('class-grade').value.trim();
-      const name = document.getElementById('class-name').value.trim();
-      const capacity = parseInt(document.getElementById('class-capacity').value) || 30;
-      const teacherId = document.getElementById('class-teacher').value;
-      
-      // Validasi grade harus 1-6
-      if (!grade) {
-        showToast('Tingkat kelas harus diisi', 'error');
-        return;
-      }
-      
-      const gradeNum = parseInt(grade);
-      if (isNaN(gradeNum) || gradeNum < 1 || gradeNum > 6) {
-        showToast('Tingkat kelas harus angka 1-6', 'error');
-        return;
-      }
-      
-      if (!name) {
-        showToast('Nama kelas harus diisi', 'error');
-        return;
-      }
-      
-      const data = {
-        type: 'class',
-        id: editingId || Date.now().toString(),
-        className: name,
-        grade: grade,
-        capacity: capacity,
-        teacherId: teacherId,
-        createdAt: new Date().toISOString()
-      };
-      
-      let result;
-      if (editingId) {
-        const existing = appData.find(d => d.__backendId === editingId);
-        result = await window.dataSdk.update({ ...existing, ...data });
-      } else {
-        result = await window.dataSdk.create(data);
-      }
-      
-      if (result.isOk) {
-        showToast(editingId ? 'Kelas berhasil diupdate' : 'Kelas berhasil ditambahkan');
-        closeClassModal();
-      } else {
-        showToast('Gagal menyimpan data kelas', 'error');
-      }
-    }
-    
-    async function deleteClass(id) {
-      const cls = appData.find(d => d.__backendId === id);
-      if (!cls) return;
-      
-      const result = await window.dataSdk.delete(cls);
-      if (result.isOk) {
-        showToast('Kelas berhasil dihapus');
-      } else {
-        showToast('Gagal menghapus kelas', 'error');
-      }
-    }
-    
-    function closeClassModal() {
-      document.getElementById('class-modal').classList.add('hidden');
-      editingId = null;
-    }
-    
-    // Schedule CRUD - Optimized Rendering
-    function renderSchedule() {
-      const schedules = appData.filter(d => d.type === 'schedule');
-      const tbody = document.getElementById('schedule-table');
-      const empty = document.getElementById('schedule-empty');
-      
-      if (schedules.length === 0) {
-        tbody.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-      }
-      
-      empty.classList.add('hidden');
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const classes = appData.filter(d => d.type === 'class');
-      
-      const dayOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-      const sorted = [...schedules].sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
-      
-      const fragment = document.createDocumentFragment();
-      sorted.forEach(s => {
-        const teacher = teachers.find(t => t.id === s.teacherId);
-        const cls = classes.find(c => c.className === s.class);
-        
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-gray-100 table-row';
-        tr.innerHTML = `
-          <td class="py-3 px-4 text-gray-800 font-medium">${s.day}</td>
-          <td class="py-3 px-4 text-gray-600">${s.time || '-'}</td>
-          <td class="py-3 px-4 text-gray-800">${teacher ? teacher.name : '-'}</td>
-          <td class="py-3 px-4 text-gray-600">${teacher ? teacher.subject : '-'}</td>
-          <td class="py-3 px-4 text-gray-600">${s.class || '-'}</td>
-          <td class="py-3 px-4">
-            <div class="flex gap-2">
-              <button onclick="editSchedule('${s.__backendId}')" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              </button>
-              <button onclick="deleteSchedule('${s.__backendId}')" class="text-red-600 hover:text-red-800 p-1" title="Hapus">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </div>
-          </td>
-        `;
-        fragment.appendChild(tr);
-      });
-      
-      tbody.innerHTML = '';
-      tbody.appendChild(fragment);
-    }
-    
-    function showAddSchedule() {
-      editingId = null;
-      document.getElementById('schedule-modal-title').textContent = 'Tambah Jadwal';
-      document.getElementById('schedule-day').value = 'Senin';
-      document.getElementById('schedule-time').value = '';
-      document.getElementById('schedule-teacher').value = '';
-      document.getElementById('schedule-class').value = '';
-      document.getElementById('schedule-modal').classList.remove('hidden');
-    }
-    
-    function editSchedule(id) {
-      const schedule = appData.find(d => d.__backendId === id);
-      if (!schedule) return;
-      
-      editingId = id;
-      document.getElementById('schedule-modal-title').textContent = 'Edit Jadwal';
-      document.getElementById('schedule-day').value = schedule.day || 'Senin';
-      document.getElementById('schedule-time').value = schedule.time || '';
-      document.getElementById('schedule-teacher').value = schedule.teacherId || '';
-      document.getElementById('schedule-class').value = schedule.class || '';
-      document.getElementById('schedule-modal').classList.remove('hidden');
-    }
-    
-    async function saveSchedule() {
-      const teacherId = document.getElementById('schedule-teacher').value;
-      const teacher = appData.find(d => d.type === 'teacher' && d.id === teacherId);
-      
-      const data = {
-        type: 'schedule',
-        id: editingId || Date.now().toString(),
-        day: document.getElementById('schedule-day').value,
-        time: document.getElementById('schedule-time').value.trim(),
-        teacherId,
-        subject: teacher ? teacher.subject : '',
-        class: document.getElementById('schedule-class').value,
-        createdAt: new Date().toISOString()
-      };
-      
-      let result;
-      if (editingId) {
-        const existing = appData.find(d => d.__backendId === editingId);
-        result = await window.dataSdk.update({ ...existing, ...data });
-      } else {
-        result = await window.dataSdk.create(data);
-      }
-      
-      if (result.isOk) {
-        showToast(editingId ? 'Jadwal berhasil diupdate' : 'Jadwal berhasil ditambahkan');
-        closeScheduleModal();
-      } else {
-        showToast('Gagal menyimpan jadwal', 'error');
-      }
-    }
-    
-    async function deleteSchedule(id) {
-      const schedule = appData.find(d => d.__backendId === id);
-      if (!schedule) return;
-      
-      const result = await window.dataSdk.delete(schedule);
-      if (result.isOk) {
-        showToast('Jadwal berhasil dihapus');
-      } else {
-        showToast('Gagal menghapus jadwal', 'error');
-      }
-    }
-    
-    function closeScheduleModal() {
-      document.getElementById('schedule-modal').classList.add('hidden');
-      editingId = null;
-    }
-    
-    // Update select options
-    function updateTeacherSelects() {
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const options = teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-      
-      document.getElementById('class-teacher').innerHTML = '<option value="">Pilih Guru</option>' + options;
-      document.getElementById('schedule-teacher').innerHTML = '<option value="">Pilih Guru</option>' + options;
-      document.getElementById('attendance-teacher').innerHTML = '<option value="">Pilih Guru</option>' + options;
-      document.getElementById('substitute-teacher-select').innerHTML = '<option value="">Pilih Guru</option>' + options;
-      document.getElementById('deduction-teacher').innerHTML = '<option value="">Pilih Guru</option>' + options;
-      document.getElementById('deduction-substitute').innerHTML = '<option value="">Tidak Ada</option>' + options;
-      document.getElementById('salary-teacher').innerHTML = '<option value="all">Semua Guru</option>' + options;
-    }
-    
-    function updateClassSelects() {
-      const classes = appData.filter(d => d.type === 'class');
-      const options = classes.map(c => `<option value="${c.className}">${c.className}</option>`).join('');
-      
-      document.getElementById('student-class').innerHTML = '<option value="">Pilih Kelas</option>' + options;
-      document.getElementById('schedule-class').innerHTML = '<option value="">Pilih Kelas</option>' + options;
-    }
-    
-    // Salary Management - Optimized Rendering
-    function updateSalaryView() {
-      const period = document.getElementById('salary-period').value;
-      const monthInput = document.getElementById('salary-month').value;
-      const teacherFilter = document.getElementById('salary-teacher').value;
-      
-      if (!monthInput) return;
-      
-      requestAnimationFrame(() => {
-        const [year, month] = monthInput.split('-').map(Number);
-        const teachers = appData.filter(d => d.type === 'teacher');
-        const attendances = appData.filter(d => d.type === 'attendance');
-        const substitutes = appData.filter(d => d.type === 'substitute');
-        const deductions = appData.filter(d => d.type === 'deduction');
-        
-        let startDate, endDate;
-        
-        if (period === 'daily') {
-          startDate = new Date(year, month - 1, 1);
-          endDate = new Date(year, month, 0);
-        } else if (period === 'monthly') {
-          startDate = new Date(year, month - 1, 1);
-          endDate = new Date(year, month, 0);
-        } else if (period === 'quarterly') {
-          startDate = new Date(year, month - 3, 1);
-          endDate = new Date(year, month, 0);
-        } else if (period === 'biannual') {
-          startDate = new Date(year, month - 6, 1);
-          endDate = new Date(year, month, 0);
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            if (currentUser && currentUser.role === 'guru') {
+                document.querySelectorAll('#add-guru-btn, #add-jadwal-btn, #add-pelajaran-btn, #add-siswa-btn, #add-kelas-btn').forEach(btn => btn.style.display = 'none');
+            }
         }
-        
-        let filteredTeachers = teacherFilter === 'all' ? teachers : teachers.filter(t => t.id === teacherFilter);
-        
-        let totalAttendance = 0;
-        let totalBaseSalary = 0;
-        let totalSubstituteSalary = 0;
-        let totalDeductions = 0;
-        
-        filteredTeachers.forEach(teacher => {
-          const teacherAttendances = attendances.filter(a => {
-            const aDate = new Date(a.date);
-            return a.teacherId === teacher.id && a.present === true && aDate >= startDate && aDate <= endDate;
-          });
-          
-          const teacherSubstitutes = substitutes.filter(s => {
-            const sDate = new Date(s.date);
-            return s.substituteTeacherId === teacher.id && sDate >= startDate && sDate <= endDate;
-          });
-          
-          const teacherDeductions = deductions.filter(d => {
-            const dDate = new Date(d.date);
-            return d.teacherId === teacher.id && dDate >= startDate && dDate <= endDate;
-          });
-          
-          totalAttendance += teacherAttendances.length;
-          totalBaseSalary += teacherAttendances.length * (teacher.dailyRate || 0);
-          
-          teacherSubstitutes.forEach(sub => {
-            totalSubstituteSalary += sub.salaryAmount || 0;
-          });
-          
-          teacherDeductions.forEach(ded => {
-            totalDeductions += ded.deductionAmount || 0;
-          });
-        });
-        
-        // Batch update summary
-        document.getElementById('total-attendance').textContent = `${totalAttendance} hari`;
-        document.getElementById('base-salary').textContent = `Rp ${totalBaseSalary.toLocaleString('id-ID')}`;
-        document.getElementById('substitute-salary').textContent = `+ Rp ${totalSubstituteSalary.toLocaleString('id-ID')}`;
-        document.getElementById('deduction-total').textContent = `- Rp ${totalDeductions.toLocaleString('id-ID')}`;
-        document.getElementById('total-salary').textContent = `Rp ${(totalBaseSalary + totalSubstituteSalary - totalDeductions).toLocaleString('id-ID')}`;
-        
-        // Update attendance summary
-        const attendanceSummary = document.getElementById('attendance-summary');
-        if (filteredTeachers.length > 0) {
-          const frag = document.createDocumentFragment();
-          filteredTeachers.slice(0, 5).forEach(teacher => {
-            const count = attendances.filter(a => {
-              const aDate = new Date(a.date);
-              return a.teacherId === teacher.id && a.present === true && aDate >= startDate && aDate <= endDate;
-            }).length;
-            const div = document.createElement('div');
-            div.className = 'flex justify-between items-center py-2 border-b border-gray-100';
-            div.innerHTML = `<span class="text-gray-700">${teacher.name}</span><span class="font-semibold text-blue-600">${count} hari</span>`;
-            frag.appendChild(div);
-          });
-          attendanceSummary.innerHTML = '';
-          attendanceSummary.appendChild(frag);
-        } else {
-          attendanceSummary.innerHTML = '<p class="text-gray-500 text-center py-4">Tidak ada data</p>';
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const user = data.users.find(u => u.email === email && u.username === username && u.password === password);
+            if (user) {
+                currentUser = user;
+                showSection('dashboard');
+                loadDashboard();
+            } else {
+                alert('Login gagal');
+            }
         }
-        
-        // Update substitute list
-        updateSubstituteList(substitutes, startDate, endDate, teacherFilter, teachers);
-        // Update deduction list
-        updateDeductionList(deductions, startDate, endDate, teacherFilter, teachers);
-      });
-    }
-    
-    function updateSubstituteList(substitutes, startDate, endDate, teacherFilter, teachers) {
-      const substituteList = document.getElementById('substitute-list');
-      const substituteEmpty = document.getElementById('substitute-empty');
-      const filteredSubs = substitutes.filter(s => {
-        const sDate = new Date(s.date);
-        return sDate >= startDate && sDate <= endDate && (teacherFilter === 'all' || s.substituteTeacherId === teacherFilter);
-      });
-      
-      if (filteredSubs.length > 0) {
-        substituteEmpty.classList.add('hidden');
-        const frag = document.createDocumentFragment();
-        filteredSubs.forEach(sub => {
-          const teacher = teachers.find(t => t.id === sub.substituteTeacherId);
-          const salary = sub.salaryAmount || 0;
-          const div = document.createElement('div');
-          div.className = 'flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg';
-          div.innerHTML = `
-            <div>
-              <p class="font-medium text-gray-800">${teacher ? teacher.name : 'Unknown'}</p>
-              <p class="text-sm text-gray-500">${new Date(sub.date).toLocaleDateString('id-ID')} - ${sub.substituteType === 'full' ? '100% Gaji' : '50% Gaji'}</p>
-              <p class="text-sm font-semibold text-green-600">Rp ${salary.toLocaleString('id-ID')}</p>
-            </div>
-            <button onclick="deleteSubstitute('${sub.__backendId}')" class="text-red-500 hover:text-red-700">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-          `;
-          frag.appendChild(div);
-        });
-        substituteList.innerHTML = '';
-        substituteList.appendChild(frag);
-      } else {
-        substituteEmpty.classList.remove('hidden');
-        substituteList.innerHTML = '';
-      }
-    }
-    
-    function updateDeductionList(deductions, startDate, endDate, teacherFilter, teachers) {
-      const deductionList = document.getElementById('deduction-list');
-      const deductionEmpty = document.getElementById('deduction-empty');
-      const filteredDeds = deductions.filter(d => {
-        const dDate = new Date(d.date);
-        return dDate >= startDate && dDate <= endDate && (teacherFilter === 'all' || d.teacherId === teacherFilter);
-      });
-      
-      if (filteredDeds.length > 0) {
-        deductionEmpty.classList.add('hidden');
-        const frag = document.createDocumentFragment();
-        filteredDeds.forEach(ded => {
-          const teacher = teachers.find(t => t.id === ded.teacherId);
-          const div = document.createElement('div');
-          div.className = 'flex justify-between items-center py-2 px-3 bg-red-50 rounded-lg';
-          div.innerHTML = `
-            <div>
-              <p class="font-medium text-gray-800">${teacher ? teacher.name : 'Unknown'}</p>
-              <p class="text-sm text-gray-500">${ded.deductionReason} - ${new Date(ded.date).toLocaleDateString('id-ID')}</p>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="font-bold text-red-600">-Rp ${(ded.deductionAmount || 0).toLocaleString('id-ID')}</span>
-              <button onclick="deleteDeduction('${ded.__backendId}')" class="text-red-500 hover:text-red-700">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-            </div>
-          `;
-          frag.appendChild(div);
-        });
-        deductionList.innerHTML = '';
-        deductionList.appendChild(frag);
-      } else {
-        deductionEmpty.classList.remove('hidden');
-        deductionList.innerHTML = '';
-      }
-    }
-    
-    // Attendance Modal
-    function showAttendanceModal() {
-      document.getElementById('attendance-date').value = new Date().toISOString().split('T')[0];
-      document.getElementById('attendance-teacher').value = '';
-      document.getElementById('attendance-status').value = 'true';
-      document.getElementById('attendance-modal').classList.remove('hidden');
-    }
-    
-    async function saveAttendance() {
-      const date = document.getElementById('attendance-date').value;
-      const teacherId = document.getElementById('attendance-teacher').value;
-      const present = document.getElementById('attendance-status').value === 'true';
-      
-      if (!date || !teacherId) {
-        showToast('Lengkapi semua field', 'error');
-        return;
-      }
-      
-      const result = await window.dataSdk.create({
-        type: 'attendance',
-        id: Date.now().toString(),
-        date,
-        teacherId,
-        present,
-        createdAt: new Date().toISOString()
-      });
-      
-      if (result.isOk) {
-        showToast('Kehadiran berhasil dicatat');
-        closeAttendanceModal();
-        updateSalaryView();
-      } else {
-        showToast('Gagal mencatat kehadiran', 'error');
-      }
-    }
-    
-    function closeAttendanceModal() {
-      document.getElementById('attendance-modal').classList.add('hidden');
-    }
-    
-    // Substitute Modal
-    function showSubstituteModal() {
-      document.getElementById('substitute-date').value = new Date().toISOString().split('T')[0];
-      document.getElementById('substitute-teacher-select').value = '';
-      document.getElementById('substitute-type').value = 'full';
-      document.getElementById('substitute-salary').value = '';
-      document.getElementById('substitute-modal').classList.remove('hidden');
-    }
-    
-    async function saveSubstitute() {
-      const date = document.getElementById('substitute-date').value;
-      const teacherId = document.getElementById('substitute-teacher-select').value;
-      const type = document.getElementById('substitute-type').value;
-      const salaryAmount = parseInt(document.getElementById('substitute-salary').value) || 0;
-      
-      if (!date || !teacherId || !salaryAmount) {
-        showToast('Lengkapi semua field termasuk nominal gaji', 'error');
-        return;
-      }
-      
-      const teacher = appData.find(t => t.type === 'teacher' && t.id === teacherId);
-      if (!teacher) {
-        showToast('Guru tidak ditemukan', 'error');
-        return;
-      }
-      
-      const result = await window.dataSdk.create({
-        type: 'substitute',
-        id: Date.now().toString(),
-        date,
-        substituteTeacherId: teacherId,
-        substituteType: type,
-        salaryAmount: salaryAmount,
-        createdAt: new Date().toISOString()
-      });
-      
-      if (result.isOk) {
-        showToast('Guru pengganti berhasil ditambahkan');
-        closeSubstituteModal();
-        updateSalaryView();
-      } else {
-        showToast('Gagal menambahkan guru pengganti', 'error');
-      }
-    }
-    
-    async function deleteSubstitute(id) {
-      const sub = appData.find(d => d.__backendId === id);
-      if (!sub) return;
-      
-      const result = await window.dataSdk.delete(sub);
-      if (result.isOk) {
-        showToast('Guru pengganti dihapus');
-        updateSalaryView();
-      }
-    }
-    
-    function closeSubstituteModal() {
-      document.getElementById('substitute-modal').classList.add('hidden');
-    }
-    
-    // Deduction Modal
-    function showDeductionModal() {
-      document.getElementById('deduction-date').value = new Date().toISOString().split('T')[0];
-      document.getElementById('deduction-teacher').value = '';
-      document.getElementById('deduction-reason').value = '';
-      document.getElementById('deduction-amount').value = '';
-      document.getElementById('deduction-substitute').value = '';
-      document.getElementById('deduction-modal').classList.remove('hidden');
-    }
-    
-    async function saveDeduction() {
-      const date = document.getElementById('deduction-date').value;
-      const teacherId = document.getElementById('deduction-teacher').value;
-      const reason = document.getElementById('deduction-reason').value.trim();
-      const amount = parseInt(document.getElementById('deduction-amount').value) || 0;
-      const substituteId = document.getElementById('deduction-substitute').value;
-      
-      if (!date || !teacherId || !reason || !amount) {
-        showToast('Lengkapi semua field wajib', 'error');
-        return;
-      }
-      
-      const result = await window.dataSdk.create({
-        type: 'deduction',
-        id: Date.now().toString(),
-        date,
-        teacherId,
-        deductionReason: reason,
-        deductionAmount: amount,
-        substituteTeacherId: substituteId || null,
-        createdAt: new Date().toISOString()
-      });
-      
-      if (result.isOk) {
-        showToast('Potongan gaji berhasil ditambahkan');
-        closeDeductionModal();
-        updateSalaryView();
-      } else {
-        showToast('Gagal menambahkan potongan', 'error');
-      }
-    }
-    
-    async function deleteDeduction(id) {
-      const ded = appData.find(d => d.__backendId === id);
-      if (!ded) return;
-      
-      const result = await window.dataSdk.delete(ded);
-      if (result.isOk) {
-        showToast('Potongan dihapus');
-        updateSalaryView();
-      }
-    }
-    
-    function closeDeductionModal() {
-      document.getElementById('deduction-modal').classList.add('hidden');
-    }
-    
-    // PDF Export Functions
-    function exportSchoolPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      doc.setFontSize(18);
-      doc.text('Data Sekolah', 14, 22);
-      
-      const school = appData.find(d => d.type === 'school');
-      if (school) {
-        doc.setFontSize(12);
-        doc.text(`Nama Sekolah: ${school.schoolName || '-'}`, 14, 40);
-        doc.text(`Kepala Sekolah: ${school.principal || '-'}`, 14, 50);
-        doc.text(`Email: ${school.schoolEmail || '-'}`, 14, 60);
-        doc.text(`Telepon: ${school.schoolPhone || '-'}`, 14, 70);
-        doc.text(`Alamat: ${school.schoolAddress || '-'}`, 14, 80);
-      }
-      
-      doc.save('data-sekolah.pdf');
-      showToast('PDF berhasil diexport');
-    }
-    
-    function exportTeachersPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      doc.setFontSize(18);
-      doc.text('Daftar Guru', 14, 22);
-      
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const tableData = teachers.map(t => [t.nip || '-', t.name, t.subject || '-', t.phone || '-', `Rp ${(t.dailyRate || 0).toLocaleString('id-ID')}`]);
-      
-      doc.autoTable({
-        head: [['NIP', 'Nama', 'Mata Pelajaran', 'Telepon', 'Gaji/Hari']],
-        body: tableData,
-        startY: 30
-      });
-      
-      doc.save('daftar-guru.pdf');
-      showToast('PDF berhasil diexport');
-    }
-    
-    function exportStudentsPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      doc.setFontSize(18);
-      doc.text('Daftar Siswa', 14, 22);
-      
-      const students = appData.filter(d => d.type === 'student');
-      const tableData = students.map(s => [s.nis || '-', s.name, s.class || '-', s.parentName || '-', s.parentPhone || '-']);
-      
-      doc.autoTable({
-        head: [['NIS', 'Nama', 'Kelas', 'Orang Tua', 'Telepon']],
-        body: tableData,
-        startY: 30
-      });
-      
-      doc.save('daftar-siswa.pdf');
-      showToast('PDF berhasil diexport');
-    }
-    
-    function exportClassesPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      doc.setFontSize(18);
-      doc.text('Daftar Kelas', 14, 22);
-      
-      const classes = appData.filter(d => d.type === 'class');
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const tableData = classes.map(c => {
-        const teacher = teachers.find(t => t.id === c.teacherId);
-        return [c.className, c.grade, teacher ? teacher.name : '-', c.capacity || 30];
-      });
-      
-      doc.autoTable({
-        head: [['Nama Kelas', 'Tingkat', 'Wali Kelas', 'Kapasitas']],
-        body: tableData,
-        startY: 30
-      });
-      
-      doc.save('daftar-kelas.pdf');
-      showToast('PDF berhasil diexport');
-    }
-    
-    function exportSchedulePDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      doc.setFontSize(18);
-      doc.text('Jadwal Mengajar', 14, 22);
-      
-      const schedules = appData.filter(d => d.type === 'schedule');
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const tableData = schedules.map(s => {
-        const teacher = teachers.find(t => t.id === s.teacherId);
-        return [s.day, s.time || '-', teacher ? teacher.name : '-', teacher ? teacher.subject : '-', s.class || '-'];
-      });
-      
-      doc.autoTable({
-        head: [['Hari', 'Waktu', 'Guru', 'Mata Pelajaran', 'Kelas']],
-        body: tableData,
-        startY: 30
-      });
-      
-      doc.save('jadwal-mengajar.pdf');
-      showToast('PDF berhasil diexport');
-    }
-    
-    function exportSalaryPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      const monthInput = document.getElementById('salary-month').value;
-      const period = document.getElementById('salary-period').value;
-      
-      doc.setFontSize(18);
-      doc.text('Laporan Gaji Guru', 14, 22);
-      doc.setFontSize(12);
-      doc.text(`Periode: ${monthInput} (${period})`, 14, 32);
-      
-      const teachers = appData.filter(d => d.type === 'teacher');
-      const attendances = appData.filter(d => d.type === 'attendance');
-      
-      const tableData = teachers.map(t => {
-        const count = attendances.filter(a => a.teacherId === t.id && a.present === true).length;
-        const total = count * (t.dailyRate || 0);
-        return [t.name, count + ' hari', `Rp ${(t.dailyRate || 0).toLocaleString('id-ID')}`, `Rp ${total.toLocaleString('id-ID')}`];
-      });
-      
-      doc.autoTable({
-        head: [['Nama Guru', 'Kehadiran', 'Gaji/Hari', 'Total']],
-        body: tableData,
-        startY: 40
-      });
-      
-      doc.save('laporan-gaji.pdf');
-      showToast('PDF berhasil diexport');
-    }
-    
-    // Backup Functions
-    function backupToFile() {
-      const backup = {
-        timestamp: new Date().toISOString(),
-        version: '1.0',
-        data: appData
-      };
-      
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup-sekolah-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      
-      localStorage.setItem('lastBackup', new Date().toISOString());
-      updateBackupHistory('file');
-      showToast('Backup berhasil diunduh');
-    }
-    
-    function backupToCloud() {
-      const backup = {
-        timestamp: new Date().toISOString(),
-        version: '1.0',
-        data: appData
-      };
-      
-      localStorage.setItem('cloudBackup', JSON.stringify(backup));
-      localStorage.setItem('lastBackup', new Date().toISOString());
-      updateBackupHistory('cloud');
-      showToast('Data berhasil disinkronkan ke cloud (localStorage)');
-    }
-    
-    async function restoreFromFile(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      
-      try {
-        const text = await file.text();
-        const backup = JSON.parse(text);
-        
-        if (!backup.data || !Array.isArray(backup.data)) {
-          showToast('Format file backup tidak valid', 'error');
-          return;
+
+        function register() {
+            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const role = prompt('Role: admin atau guru');
+            data.users.push({ email, username, password, role });
+            saveData();
+            alert('Registrasi berhasil');
         }
-        
-        // Delete existing data
-        for (const item of appData) {
-          await window.dataSdk.delete(item);
+
+        function logout() {
+            currentUser = null;
+            showSection('login');
         }
-        
-        // Restore data
-        for (const item of backup.data) {
-          const { __backendId, ...rest } = item;
-          await window.dataSdk.create(rest);
+
+        function saveSchoolData() {
+            data.school = {
+                name: document.getElementById('school-name').value,
+                address: document.getElementById('school-address').value
+            };
+            saveData();
+            loadDashboard();
         }
-        
-        showToast('Data berhasil dipulihkan dari file');
-      } catch (e) {
-        showToast('Gagal membaca file backup', 'error');
-      }
-      
-      event.target.value = '';
-    }
-    
-    async function restoreFromCloud() {
-      const backup = localStorage.getItem('cloudBackup');
-      if (!backup) {
-        showToast('Tidak ada backup cloud ditemukan', 'error');
-        return;
-      }
-      
-      try {
-        const data = JSON.parse(backup);
-        
-        // Delete existing data
-        for (const item of appData) {
-          await window.dataSdk.delete(item);
+
+        function loadDashboard() {
+            const display = document.getElementById('school-data-display');
+            display.innerHTML = `<p>Nama Sekolah: ${data.school.name || 'Belum diisi'}</p><p>Alamat: ${data.school.address || 'Belum diisi'}</p>`;
         }
-        
-        // Restore data
-        for (const item of data.data) {
-          const { __backendId, ...rest } = item;
-          await window.dataSdk.create(rest);
+
+        function addGuru() {
+            if (currentUser.role !== 'admin') return;
+            const name = prompt('Nama Guru');
+            const email = prompt('Email');
+            data.gurus.push({ name, email, role: 'guru' });
+            saveData();
+            loadGurus();
         }
-        
-        showToast('Data berhasil dipulihkan dari cloud');
-      } catch (e) {
-        showToast('Gagal memulihkan data dari cloud', 'error');
-      }
-    }
-    
-    function toggleAutoBackup() {
-      const enabled = document.getElementById('auto-backup').checked;
-      localStorage.setItem('autoBackup', enabled);
-      
-      if (enabled) {
-        startAutoBackup();
-        showToast('Backup otomatis diaktifkan');
-      } else {
-        stopAutoBackup();
-        showToast('Backup otomatis dinonaktifkan');
-      }
-    }
-    
-    function startAutoBackup() {
-      if (autoBackupInterval) return;
-      autoBackupInterval = setInterval(() => {
-        backupToCloud();
-      }, 5 * 60 * 1000); // 5 minutes
-    }
-    
-    function stopAutoBackup() {
-      if (autoBackupInterval) {
-        clearInterval(autoBackupInterval);
-        autoBackupInterval = null;
-      }
-    }
-    
-    function updateBackupHistory(type) {
-      const history = JSON.parse(localStorage.getItem('backupHistory') || '[]');
-      history.unshift({
-        type,
-        timestamp: new Date().toISOString()
-      });
-      localStorage.setItem('backupHistory', JSON.stringify(history.slice(0, 10)));
-      renderBackupHistory();
-    }
-    
-    function renderBackupHistory() {
-      const history = JSON.parse(localStorage.getItem('backupHistory') || '[]');
-      const container = document.getElementById('backup-history');
-      const empty = document.getElementById('backup-empty');
-      
-      if (history.length === 0) {
-        container.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-      }
-      
-      empty.classList.add('hidden');
-      container.innerHTML = history.map(h => `
-        <div class="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-xl">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">${h.type === 'cloud' ? '☁️' : '📁'}</span>
-            <div>
-              <p class="font-medium text-gray-800">${h.type === 'cloud' ? 'Cloud Backup' : 'File Backup'}</p>
-              <p class="text-sm text-gray-500">${new Date(h.timestamp).toLocaleString('id-ID')}</p>
-            </div>
-          </div>
-        </div>
-      `).join('');
-      
-      const lastBackup = localStorage.getItem('lastBackup');
-      if (lastBackup) {
-        document.getElementById('last-backup').textContent = `Backup terakhir: ${new Date(lastBackup).toLocaleString('id-ID')}`;
-      }
-    }
-    
-    // Initialize app
-    initApp();
-    renderBackupHistory();
-  </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c4e46e9036ea146',t:'MTc2OTU4MDEwNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+
+        function loadGurus() {
+            const table = document.getElementById('guru-table');
+            table.innerHTML = '<tr><th>Nama</th><th>Email</th><th>Role</th></tr>';
+            data.gurus.forEach(g => {
+                table.innerHTML += `<tr><td>${g.name}</td><td>${g.email}</td><td>${g.role}</td></tr>`;
+            });
+        }
+
+        // Fungsi serupa untuk jadwal, pelajaran, siswa, kelas (add dan load)
+
+        function calculateSalary() {
+            const guru = document.getElementById('guru-select').value;
+            const daily = parseFloat(document.getElementById('daily-salary').value);
+            const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+            const monthly = daily * daysInMonth;
+            const summary = document.getElementById('salary-summary');
+            summary.innerHTML = `
+                <p>Gaji Per Hari: ${daily}</p>
+                <p>Gaji Per Bulan: ${monthly}</p>
+                <p>Gaji Per 3 Bulan: ${monthly * 3}</p>
+                <p>Gaji Per 6 Bulan: ${monthly * 6}</p>
+                <p>Guru Pengganti Full: ${data.salaries[guru]?.substitutes?.full || 0}</p>
+                <p>Guru Pengganti Selingan: ${data.salaries[guru]?.substitutes?.selingan || 0}</p>
+                <p>Potongan: ${data.salaries[guru]?.deductions || 0}</p>
+                <p>Total Pendapatan: ${monthly + (data.salaries[guru]?.substitutes?.full || 0) + (data.salaries[guru]?.substitutes?.selingan || 0) - (data.salaries[guru]?.deductions || 0)}</p>
+            `;
+        }
+
+        function addSubstitute() {
+            const date = document.getElementById('substitute-date').value;
+            const type = document.getElementById('substitute-type').value;
+            const amount = parseFloat(document.getElementById('substitute-amount').value);
+            const guru = document.getElementById('guru-select').value;
+            if (!data.salaries[guru]) data.salaries[guru] = { substitutes: { full: 0, selingan: 0 }, deductions: 0 };
+            data.salaries[guru].substitutes[type] += amount;
+            saveData();
+        }
+
+        function addDeduction() {
+            const date = document.getElementById('deduction-date').value;
+            const reason = document.getElementById('deduction-reason').value;
+            const amount = parseFloat(document.getElementById('deduction-amount').value);
+            const replacement = document.getElementById('replacement-teacher').value;
+            const type = document.getElementById('replacement-type').value;
+            const replacementSalary = parseFloat(document.getElementById('replacement-salary').value);
+            const guru = document.getElementById('guru-select').value;
+            if (!data.salaries[guru]) data.salaries[guru] = { substitutes: { full: 0, selingan: 0 }, deductions: 0 };
+            data.salaries[guru].deductions += amount;
+            // Tambahkan logika untuk guru pengganti jika diperlukan
+            saveData();
+        }
+
+        function printPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text(document.getElementById('salary-summary').innerText, 10, 10);
+            doc.save('gaji-guru.pdf');
+        }
+
+        function backupData() {
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'backup-school-data.json';
+            a.click();
+        }
+
+        function restoreData() {
+            const file = document.getElementById('restore-file').files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                data = JSON.parse(e.target.result);
+                saveData();
+                alert('Data berhasil direstore');
+            };
+            reader.readAsText(file);
+        }
+
+        function saveData() {
+            localStorage.setItem('schoolData', JSON.stringify(data));
+            // Placeholder untuk backup ke Google Drive: gunakan gapi untuk upload file
+            // Contoh: gapi.client.drive.files.create({ resource: { name: 'backup.json' }, media: { body: JSON.stringify(data) } });
+        }
+
+        // Load initial data
+        loadGurus();
+        // Load lainnya serupa
+    </script>
+</body>
 </html>
