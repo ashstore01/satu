@@ -1,287 +1,2438 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administrasi Sekolah</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-        .sidebar { width: 250px; height: 100vh; background: #333; color: white; position: fixed; left: -250px; transition: 0.3s; }
-        .sidebar.show { left: 0; }
-        .sidebar ul { list-style: none; padding: 20px; }
-        .sidebar ul li { margin: 10px 0; }
-        .sidebar ul li a { color: white; text-decoration: none; }
-        .content { margin-left: 0; padding: 20px; transition: 0.3s; }
-        .content.shift { margin-left: 250px; }
-        .toggle-btn { position: fixed; top: 10px; left: 10px; z-index: 1000; background: #333; color: white; border: none; padding: 10px; cursor: pointer; }
-        .hidden { display: none; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        input, button { margin: 5px; padding: 8px; }
-    </style>
-</head>
-<body>
-    <button class="toggle-btn" onclick="toggleSidebar()">☰ Menu</button>
-    <div class="sidebar" id="sidebar">
-        <ul>
-            <li><a href="#" onclick="showSection('login')">Login/Registrasi</a></li>
-            <li><a href="#" onclick="showSection('dashboard')">Dashboard</a></li>
-            <li><a href="#" onclick="showSection('data-sekolah')">Data Sekolah</a></li>
-            <li><a href="#" onclick="showSection('data-guru')">Data Guru</a></li>
-            <li><a href="#" onclick="showSection('jadwal-mengajar')">Jadwal Mengajar</a></li>
-            <li><a href="#" onclick="showSection('mata-pelajaran')">Mata Pelajaran</a></li>
-            <li><a href="#" onclick="showSection('data-siswa')">Data Siswa</a></li>
-            <li><a href="#" onclick="showSection('tambah-kelas')">Tambah Kelas</a></li>
-            <li><a href="#" onclick="showSection('gaji-guru')">Gaji Guru</a></li>
-            <li><a href="#" onclick="logout()">Logout</a></li>
-        </ul>
-    </div>
-    <div class="content" id="content">
-        <div id="login" class="section">
-            <h2>Login</h2>
-            <input type="email" id="email" placeholder="Email"><br>
-            <input type="text" id="username" placeholder="Username"><br>
-            <input type="password" id="password" placeholder="Password"><br>
-            <button onclick="login()">Login</button>
-            <button onclick="register()">Registrasi</button>
+<!doctype html>
+<html lang="id" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Administrasi Sekolah</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .sidebar-transition {
+      transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
+    }
+    
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      z-index: 9999;
+      animation: slideIn 0.3s ease-out;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .toast.success { background: #10b981; }
+    .toast.error { background: #ef4444; }
+    .toast.info { background: #3b82f6; }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .modal-backdrop {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    }
+    
+    .card {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full w-full bg-gradient-to-br from-gray-50 to-gray-100">
+  <div id="app" class="h-full w-full overflow-auto"></div>
+  <script>
+    const defaultConfig = {
+      app_title: "Sistem Administrasi Sekolah",
+      welcome_message: "Selamat datang di sistem administrasi",
+      primary_color: "#667eea",
+      secondary_color: "#764ba2",
+      background_color: "#f9fafb",
+      text_color: "#1f2937",
+      accent_color: "#10b981"
+    };
+
+    let allData = [];
+    let currentUser = null;
+    let currentView = 'login';
+    let sidebarOpen = true;
+    let editingItem = null;
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allData = data;
+        renderApp();
+      }
+    };
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const form = e.target;
+      const email = form.email.value.trim();
+      const username = form.username.value.trim();
+      const password = form.password.value;
+      const role = form.role.value;
+
+      if (!email || !username || !password) {
+        showToast('Semua field harus diisi', 'error');
+        return;
+      }
+
+      const existingUser = allData.find(d => d.type === 'user' && d.username === username);
+      if (existingUser) {
+        showToast('Username sudah terdaftar', 'error');
+        return;
+      }
+
+      const result = await window.dataSdk.create({
+        id: generateId(),
+        type: 'user',
+        email,
+        username,
+        password,
+        role,
+        created_at: new Date().toISOString()
+      });
+
+      if (result.isOk) {
+        showToast('Registrasi berhasil! Silakan login');
+        currentView = 'login';
+        renderApp();
+      } else {
+        showToast('Gagal mendaftar', 'error');
+      }
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const form = e.target;
+      const username = form.username.value.trim();
+      const password = form.password.value;
+
+      const user = allData.find(d => 
+        d.type === 'user' && 
+        d.username === username && 
+        d.password === password
+      );
+
+      if (user) {
+        currentUser = user;
+        currentView = 'dashboard';
+        showToast(`Selamat datang, ${user.username}!`);
+        renderApp();
+      } else {
+        showToast('Username atau password salah', 'error');
+      }
+    }
+
+    function handleLogout() {
+      currentUser = null;
+      currentView = 'login';
+      showToast('Anda telah logout');
+      renderApp();
+    }
+
+    async function handleDataSekolah(e) {
+      e.preventDefault();
+      const form = e.target;
+      
+      const existingData = allData.find(d => d.type === 'data_sekolah');
+      
+      const schoolData = {
+        type: 'data_sekolah',
+        nama_sekolah: form.nama_sekolah.value.trim(),
+        alamat: form.alamat.value.trim(),
+        telepon: form.telepon.value.trim(),
+        created_at: new Date().toISOString()
+      };
+
+      if (existingData) {
+        const result = await window.dataSdk.update({
+          ...existingData,
+          ...schoolData
+        });
+        if (result.isOk) {
+          showToast('Data sekolah berhasil diperbarui');
+        } else {
+          showToast('Gagal memperbarui data', 'error');
+        }
+      } else {
+        const result = await window.dataSdk.create({
+          id: generateId(),
+          ...schoolData
+        });
+        if (result.isOk) {
+          showToast('Data sekolah berhasil disimpan');
+        } else {
+          showToast('Gagal menyimpan data', 'error');
+        }
+      }
+    }
+
+    async function handleDataGuru(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      if (editingItem) {
+        const result = await window.dataSdk.update({
+          ...editingItem,
+          nama_guru: form.nama_guru.value.trim(),
+          email: form.email.value.trim(),
+          telepon: form.telepon.value.trim(),
+          mata_pelajaran: form.mata_pelajaran.value.trim()
+        });
+        if (result.isOk) {
+          showToast('Data guru berhasil diperbarui');
+          editingItem = null;
+          form.reset();
+        } else {
+          showToast('Gagal memperbarui data guru', 'error');
+        }
+      } else {
+        const result = await window.dataSdk.create({
+          id: generateId(),
+          type: 'guru',
+          nama_guru: form.nama_guru.value.trim(),
+          email: form.email.value.trim(),
+          telepon: form.telepon.value.trim(),
+          mata_pelajaran: form.mata_pelajaran.value.trim(),
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          showToast('Data guru berhasil ditambahkan');
+          form.reset();
+        } else {
+          showToast('Gagal menambahkan data guru', 'error');
+        }
+      }
+    }
+
+    async function handleJadwalMengajar(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      if (editingItem) {
+        const result = await window.dataSdk.update({
+          ...editingItem,
+          nama_guru: form.nama_guru.value,
+          mata_pelajaran: form.mata_pelajaran.value,
+          kelas: form.kelas.value,
+          hari: form.hari.value,
+          jam_mulai: form.jam_mulai.value,
+          jam_selesai: form.jam_selesai.value
+        });
+        if (result.isOk) {
+          showToast('Jadwal berhasil diperbarui');
+          editingItem = null;
+          form.reset();
+        } else {
+          showToast('Gagal memperbarui jadwal', 'error');
+        }
+      } else {
+        const result = await window.dataSdk.create({
+          id: generateId(),
+          type: 'jadwal',
+          nama_guru: form.nama_guru.value,
+          mata_pelajaran: form.mata_pelajaran.value,
+          kelas: form.kelas.value,
+          hari: form.hari.value,
+          jam_mulai: form.jam_mulai.value,
+          jam_selesai: form.jam_selesai.value,
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          showToast('Jadwal berhasil ditambahkan');
+          form.reset();
+        } else {
+          showToast('Gagal menambahkan jadwal', 'error');
+        }
+      }
+    }
+
+    async function handleMataPelajaran(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      if (editingItem) {
+        const result = await window.dataSdk.update({
+          ...editingItem,
+          nama_mapel: form.nama_mapel.value.trim(),
+          keterangan: form.keterangan.value.trim()
+        });
+        if (result.isOk) {
+          showToast('Mata pelajaran berhasil diperbarui');
+          editingItem = null;
+          form.reset();
+        } else {
+          showToast('Gagal memperbarui mata pelajaran', 'error');
+        }
+      } else {
+        const result = await window.dataSdk.create({
+          id: generateId(),
+          type: 'mapel',
+          nama_mapel: form.nama_mapel.value.trim(),
+          keterangan: form.keterangan.value.trim(),
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          showToast('Mata pelajaran berhasil ditambahkan');
+          form.reset();
+        } else {
+          showToast('Gagal menambahkan mata pelajaran', 'error');
+        }
+      }
+    }
+
+    async function handleDataSiswa(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      if (editingItem) {
+        const result = await window.dataSdk.update({
+          ...editingItem,
+          nama_siswa: form.nama_siswa.value.trim(),
+          nis: form.nis.value.trim(),
+          kelas: form.kelas.value,
+          alamat: form.alamat.value.trim()
+        });
+        if (result.isOk) {
+          showToast('Data siswa berhasil diperbarui');
+          editingItem = null;
+          form.reset();
+        } else {
+          showToast('Gagal memperbarui data siswa', 'error');
+        }
+      } else {
+        const result = await window.dataSdk.create({
+          id: generateId(),
+          type: 'siswa',
+          nama_siswa: form.nama_siswa.value.trim(),
+          nis: form.nis.value.trim(),
+          kelas: form.kelas.value,
+          alamat: form.alamat.value.trim(),
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          showToast('Data siswa berhasil ditambahkan');
+          form.reset();
+        } else {
+          showToast('Gagal menambahkan data siswa', 'error');
+        }
+      }
+    }
+
+    async function handleTambahKelas(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      if (editingItem) {
+        const result = await window.dataSdk.update({
+          ...editingItem,
+          nama_kelas: form.nama_kelas.value.trim(),
+          wali_kelas: form.wali_kelas.value.trim()
+        });
+        if (result.isOk) {
+          showToast('Kelas berhasil diperbarui');
+          editingItem = null;
+          form.reset();
+        } else {
+          showToast('Gagal memperbarui kelas', 'error');
+        }
+      } else {
+        const result = await window.dataSdk.create({
+          id: generateId(),
+          type: 'kelas',
+          nama_kelas: form.nama_kelas.value.trim(),
+          wali_kelas: form.wali_kelas.value.trim(),
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          showToast('Kelas berhasil ditambahkan');
+          form.reset();
+        } else {
+          showToast('Gagal menambahkan kelas', 'error');
+        }
+      }
+    }
+
+    async function handleGajiGuru(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      if (editingItem) {
+        const result = await window.dataSdk.update({
+          ...editingItem,
+          nama_guru: form.nama_guru.value,
+          bulan: form.bulan.value,
+          tahun: form.tahun.value,
+          gaji_harian: parseFloat(form.gaji_harian.value),
+          hari_hadir: parseInt(form.hari_hadir.value)
+        });
+        if (result.isOk) {
+          showToast('Data gaji berhasil diperbarui');
+          editingItem = null;
+          form.reset();
+        } else {
+          showToast('Gagal memperbarui data gaji', 'error');
+        }
+      } else {
+        const result = await window.dataSdk.create({
+          id: generateId(),
+          type: 'gaji',
+          nama_guru: form.nama_guru.value,
+          bulan: form.bulan.value,
+          tahun: form.tahun.value,
+          gaji_harian: parseFloat(form.gaji_harian.value),
+          hari_hadir: parseInt(form.hari_hadir.value),
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          showToast('Data gaji berhasil ditambahkan');
+          form.reset();
+        } else {
+          showToast('Gagal menambahkan data gaji', 'error');
+        }
+      }
+    }
+
+    async function handleGuruPengganti(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      const result = await window.dataSdk.create({
+        id: generateId(),
+        type: 'guru_pengganti',
+        nama_guru: form.nama_guru.value,
+        tanggal: form.tanggal.value,
+        kategori: form.kategori.value,
+        nominal: parseFloat(form.nominal.value),
+        keterangan: form.keterangan.value.trim(),
+        created_at: new Date().toISOString()
+      });
+
+      if (result.isOk) {
+        showToast('Data guru pengganti berhasil ditambahkan');
+        form.reset();
+      }
+    }
+
+    async function handlePotonganGaji(e) {
+      e.preventDefault();
+      const form = e.target;
+
+      const result = await window.dataSdk.create({
+        id: generateId(),
+        type: 'potongan_gaji',
+        nama_guru: form.nama_guru.value,
+        tanggal: form.tanggal.value,
+        keterangan: form.keterangan.value.trim(),
+        nominal: parseFloat(form.nominal.value),
+        created_at: new Date().toISOString()
+      });
+
+      if (result.isOk) {
+        showToast('Potongan gaji berhasil ditambahkan');
+        form.reset();
+      }
+    }
+
+    async function deleteItem(item) {
+      const confirmModal = document.createElement('div');
+      confirmModal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-[70]';
+      confirmModal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl">
+          <h3 class="text-xl font-bold mb-4 text-red-600">⚠️ Konfirmasi Hapus</h3>
+          <p class="mb-6 text-gray-700">Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.</p>
+          <div class="flex gap-3">
+            <button id="confirm-delete-btn" class="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 font-semibold">
+              Ya, Hapus
+            </button>
+            <button onclick="this.closest('.modal-backdrop').remove()" 
+                    class="flex-1 bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 font-semibold">
+              Batal
+            </button>
+          </div>
         </div>
-        <div id="dashboard" class="section hidden">
-            <h2>Dashboard</h2>
-            <div id="school-data-display"></div>
+      `;
+      
+      document.body.appendChild(confirmModal);
+      
+      confirmModal.querySelector('#confirm-delete-btn').addEventListener('click', async () => {
+        const result = await window.dataSdk.delete(item);
+        if (result.isOk) {
+          showToast('Data berhasil dihapus');
+          confirmModal.remove();
+        } else {
+          showToast('Gagal menghapus data', 'error');
+        }
+      });
+    }
+
+    function viewItem(item) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
+          <h3 class="text-xl font-bold mb-4">Detail Data</h3>
+          <div class="space-y-2">
+            ${Object.entries(item).map(([key, value]) => {
+              if (key === '__backendId' || key === 'password') return '';
+              return `<div class="flex border-b pb-2">
+                <span class="font-semibold w-1/3">${key}:</span>
+                <span class="w-2/3">${value}</span>
+              </div>`;
+            }).join('')}
+          </div>
+          <button onclick="this.closest('.modal-backdrop').remove()" 
+                  class="mt-4 bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
+            Tutup
+          </button>
         </div>
-        <div id="data-sekolah" class="section hidden">
-            <h2>Data Sekolah</h2>
-            <input type="text" id="school-name" placeholder="Nama Sekolah"><br>
-            <input type="text" id="school-address" placeholder="Alamat"><br>
-            <button onclick="saveSchoolData()">Simpan</button>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    // Helper functions for modal buttons
+    window.viewItemFromModal = function(idx, type) {
+      const modalElement = document.querySelector('.modal-backdrop');
+      let item;
+      if (type === 'pengganti') {
+        const penggantiList = allData.filter(d => 
+          d.type === 'guru_pengganti' && 
+          d.nama_guru === modalElement.penggantiList[0].nama_guru
+        );
+        item = penggantiList[idx];
+      } else if (type === 'potongan') {
+        const potonganList = allData.filter(d => 
+          d.type === 'potongan_gaji' && 
+          d.nama_guru === modalElement.potonganList[0].nama_guru
+        );
+        item = potonganList[idx];
+      }
+      
+      if (item) {
+        viewItem(item);
+      }
+    };
+
+    window.editGuruPenggantiFromModal = function(idx) {
+      const modalElement = document.querySelector('.modal-backdrop');
+      const penggantiList = allData.filter(d => 
+        d.type === 'guru_pengganti' && 
+        d.nama_guru === modalElement.penggantiList[0].nama_guru
+      );
+      const item = penggantiList[idx];
+      if (item) {
+        editGuruPengganti(item);
+      }
+    };
+
+    window.editPotonganGajiFromModal = function(idx) {
+      const modalElement = document.querySelector('.modal-backdrop');
+      const potonganList = allData.filter(d => 
+        d.type === 'potongan_gaji' && 
+        d.nama_guru === modalElement.potonganList[0].nama_guru
+      );
+      const item = potonganList[idx];
+      if (item) {
+        editPotonganGaji(item);
+      }
+    };
+
+    window.deleteItemFromModal = async function(idx, type) {
+      const modalElement = document.querySelector('.modal-backdrop');
+      let item;
+      if (type === 'pengganti') {
+        const penggantiList = allData.filter(d => 
+          d.type === 'guru_pengganti' && 
+          d.nama_guru === modalElement.penggantiList[0].nama_guru
+        );
+        item = penggantiList[idx];
+      } else if (type === 'potongan') {
+        const potonganList = allData.filter(d => 
+          d.type === 'potongan_gaji' && 
+          d.nama_guru === modalElement.potonganList[0].nama_guru
+        );
+        item = potonganList[idx];
+      }
+      
+      if (item) {
+        const confirmModal = document.createElement('div');
+        confirmModal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-[60]';
+        confirmModal.innerHTML = `
+          <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold mb-4 text-red-600">Konfirmasi Hapus</h3>
+            <p class="mb-6">Apakah Anda yakin ingin menghapus data ini?</p>
+            <div class="flex gap-2">
+              <button id="confirm-delete" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                Ya, Hapus
+              </button>
+              <button onclick="this.closest('.modal-backdrop').remove()" 
+                      class="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                Batal
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(confirmModal);
+        
+        confirmModal.querySelector('#confirm-delete').addEventListener('click', async () => {
+          const result = await window.dataSdk.delete(item);
+          if (result.isOk) {
+            showToast('Data berhasil dihapus');
+            confirmModal.remove();
+            modalElement.remove();
+          } else {
+            showToast('Gagal menghapus data', 'error');
+          }
+        });
+      }
+    };
+
+    function showGuruPenggantiDetail(namaGuru, bulan, tahun) {
+      const penggantiList = allData.filter(d => 
+        d.type === 'guru_pengganti' && 
+        d.nama_guru === namaGuru
+      );
+
+      const isReadOnly = currentUser.role === 'guru';
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+          <h3 class="text-2xl font-bold mb-4">Detail Guru Pengganti - ${namaGuru}</h3>
+          <p class="text-gray-600 mb-4">${bulan} ${tahun}</p>
+          
+          ${penggantiList.length === 0 ? `
+            <p class="text-center text-gray-500 py-8">Tidak ada data guru pengganti</p>
+          ` : `
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tanggal</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Kategori</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nominal</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Keterangan</th>
+                    ${!isReadOnly ? '<th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aksi</th>' : ''}
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${penggantiList.map((item, idx) => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3">${new Date(item.tanggal).toLocaleDateString('id-ID')}</td>
+                      <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded text-xs font-semibold ${item.kategori === 'full' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+                          ${item.kategori.toUpperCase()}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 font-semibold">Rp ${item.nominal.toLocaleString('id-ID')}</td>
+                      <td class="px-4 py-3">${item.keterangan || '-'}</td>
+                      ${!isReadOnly ? `
+                        <td class="px-4 py-3 space-x-2">
+                          <button onclick='window.viewItemFromModal(${idx}, "pengganti")' 
+                                  class="text-blue-600 hover:text-blue-800">👁️</button>
+                          <button onclick='window.editGuruPenggantiFromModal(${idx}); this.closest(".modal-backdrop").remove();' 
+                                  class="text-green-600 hover:text-green-800">✏️</button>
+                          <button onclick='window.deleteItemFromModal(${idx}, "pengganti")' 
+                                  class="text-red-600 hover:text-red-800">🗑️</button>
+                        </td>
+                      ` : ''}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+          
+          <div class="flex gap-2 mt-4">
+            <button onclick="this.closest('.modal-backdrop').remove()" 
+                    class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 font-semibold">
+              ← Kembali
+            </button>
+            <button onclick="this.closest('.modal-backdrop').remove()" 
+                    class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
+              Tutup
+            </button>
+          </div>
         </div>
-        <div id="data-guru" class="section hidden">
-            <h2>Data Guru</h2>
-            <table id="guru-table">
-                <tr><th>Nama</th><th>Email</th><th>Role</th></tr>
-            </table>
-            <button onclick="addGuru()" id="add-guru-btn">Tambah Guru</button>
+      `;
+      
+      // Store reference for button handlers
+      modal.penggantiList = penggantiList;
+      
+      document.body.appendChild(modal);
+    }
+
+    function showPotonganDetail(namaGuru, bulan, tahun) {
+      const potonganList = allData.filter(d => 
+        d.type === 'potongan_gaji' && 
+        d.nama_guru === namaGuru
+      );
+
+      const isReadOnly = currentUser.role === 'guru';
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-5xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+          <h3 class="text-2xl font-bold mb-4">Detail Potongan Gaji - ${namaGuru}</h3>
+          <p class="text-gray-600 mb-4">${bulan} ${tahun}</p>
+          
+          ${potonganList.length === 0 ? `
+            <p class="text-center text-gray-500 py-8">Tidak ada data potongan gaji</p>
+          ` : `
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tanggal</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Keterangan</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Potongan</th>
+                    ${!isReadOnly ? '<th class="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aksi</th>' : ''}
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${potonganList.map(item => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-3 py-3">${new Date(item.tanggal).toLocaleDateString('id-ID')}</td>
+                      <td class="px-3 py-3">${item.keterangan}</td>
+                      <td class="px-3 py-3 font-semibold text-red-600">-Rp ${item.nominal.toLocaleString('id-ID')}</td>
+                      ${!isReadOnly ? `
+                        <td class="px-3 py-3 space-x-2">
+                          <button onclick='viewItem(${JSON.stringify(item).replace(/'/g, "\\'")}); this.closest(".modal-backdrop").remove();' 
+                                  class="text-blue-600 hover:text-blue-800">👁️</button>
+                          <button onclick='editPotonganGaji(${JSON.stringify(item).replace(/'/g, "\\'")}); this.closest(".modal-backdrop").remove();' 
+                                  class="text-green-600 hover:text-green-800">✏️</button>
+                          <button onclick='deleteItem(${JSON.stringify(item).replace(/'/g, "\\'")}); this.closest(".modal-backdrop").remove();' 
+                                  class="text-red-600 hover:text-red-800">🗑��</button>
+                        </td>
+                      ` : ''}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+          
+          <div class="flex gap-2 mt-4">
+            <button onclick="this.closest('.modal-backdrop').remove()" 
+                    class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 font-semibold">
+              ← Kembali
+            </button>
+            <button onclick="this.closest('.modal-backdrop').remove()" 
+                    class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
+              Tutup
+            </button>
+          </div>
         </div>
-        <div id="jadwal-mengajar" class="section hidden">
-            <h2>Jadwal Mengajar</h2>
-            <table id="jadwal-table">
-                <tr><th>Guru</th><th>Mata Pelajaran</th><th>Hari</th><th>Jam</th></tr>
-            </table>
-            <button onclick="addJadwal()" id="add-jadwal-btn">Tambah Jadwal</button>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    async function editGuruPengganti(item) {
+      if (currentUser.role === 'guru') {
+        showToast('Guru tidak memiliki akses edit', 'error');
+        return;
+      }
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+          <h3 class="text-xl font-bold mb-4">Edit Guru Pengganti</h3>
+          <form id="edit-pengganti-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Guru</label>
+              <input type="text" name="nama_guru" value="${item.nama_guru}" readonly
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal</label>
+              <input type="date" name="tanggal" value="${item.tanggal}" required
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Kategori</label>
+              <select name="kategori" required
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                <option value="full" ${item.kategori === 'full' ? 'selected' : ''}>Full</option>
+                <option value="selingan" ${item.kategori === 'selingan' ? 'selected' : ''}>Selingan</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Nominal (Rp)</label>
+              <input type="number" name="nominal" value="${item.nominal}" min="0" step="1000" required
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Keterangan</label>
+              <input type="text" name="keterangan" value="${item.keterangan || ''}"
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+            </div>
+            <div class="md:col-span-2 flex gap-2">
+              <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                Simpan Perubahan
+              </button>
+              <button type="button" onclick="this.closest('.modal-backdrop').remove()" 
+                      class="bg-gray-500 text-white px-6 py-3 rounded-lg">
+                Batal
+              </button>
+            </div>
+          </form>
         </div>
-        <div id="mata-pelajaran" class="section hidden">
-            <h2>Mata Pelajaran</h2>
-            <table id="pelajaran-table">
-                <tr><th>Nama</th><th>Kelas</th></tr>
-            </table>
-            <button onclick="addPelajaran()" id="add-pelajaran-btn">Tambah Mata Pelajaran</button>
+      `;
+      
+      modal.querySelector('#edit-pengganti-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        
+        const result = await window.dataSdk.update({
+          ...item,
+          tanggal: form.tanggal.value,
+          kategori: form.kategori.value,
+          nominal: parseFloat(form.nominal.value),
+          keterangan: form.keterangan.value.trim()
+        });
+
+        if (result.isOk) {
+          showToast('Data guru pengganti berhasil diperbarui');
+          modal.remove();
+        } else {
+          showToast('Gagal memperbarui data', 'error');
+        }
+      });
+
+      document.body.appendChild(modal);
+    }
+
+    async function editPotonganGaji(item) {
+      if (currentUser.role === 'guru') {
+        showToast('Guru tidak memiliki akses edit', 'error');
+        return;
+      }
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <h3 class="text-xl font-bold mb-4">Edit Potongan Gaji</h3>
+          <form id="edit-potongan-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Guru (Yang Dipotong)</label>
+              <input type="text" name="nama_guru" value="${item.nama_guru}" readonly
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal</label>
+              <input type="date" name="tanggal" value="${item.tanggal}" required
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Keterangan</label>
+              <input type="text" name="keterangan" value="${item.keterangan}" required
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Jumlah Potongan (Rp)</label>
+              <input type="number" name="nominal" value="${item.nominal}" min="0" step="1000" required
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+            </div>
+            <div class="md:col-span-2 flex gap-2">
+              <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                Simpan Perubahan
+              </button>
+              <button type="button" onclick="this.closest('.modal-backdrop').remove()" 
+                      class="bg-gray-500 text-white px-6 py-3 rounded-lg">
+                Batal
+              </button>
+            </div>
+          </form>
         </div>
-        <div id="data-siswa" class="section hidden">
-            <h2>Data Siswa</h2>
-            <table id="siswa-table">
-                <tr><th>Nama</th><th>Kelas</th><th>NIS</th></tr>
-            </table>
-            <button onclick="addSiswa()" id="add-siswa-btn">Tambah Siswa</button>
-        </div>
-        <div id="tambah-kelas" class="section hidden">
-            <h2>Tambah Kelas</h2>
-            <input type="text" id="kelas-name" placeholder="Nama Kelas"><br>
-            <button onclick="addKelas()" id="add-kelas-btn">Tambah Kelas</button>
-        </div>
-        <div id="gaji-guru" class="section hidden">
-            <h2>Gaji Guru</h2>
-            <select id="guru-select">
-                <option value="">Pilih Guru</option>
-            </select>
-            <input type="number" id="daily-salary" placeholder="Gaji Harian"><br>
-            <button onclick="calculateSalary()">Hitung Gaji</button>
-            <div id="salary-summary"></div>
-            <h3>Guru Pengganti</h3>
-            <input type="date" id="substitute-date"><br>
-            <select id="substitute-type"><option value="full">Full</option><option value="selingan">Selingan</option></select><br>
-            <input type="number" id="substitute-amount" placeholder="Nominal"><br>
-            <button onclick="addSubstitute()">Tambah Guru Pengganti</button>
-            <h3>Potongan Gaji</h3>
-            <input type="date" id="deduction-date"><br>
-            <input type="text" id="deduction-reason" placeholder="Keterangan"><br>
-            <input type="number" id="deduction-amount" placeholder="Jumlah Potongan"><br>
-            <input type="text" id="replacement-teacher" placeholder="Nama Guru Pengganti"><br>
-            <select id="replacement-type"><option value="full">Full</option><option value="selingan">Selingan</option></select><br>
-            <input type="number" id="replacement-salary" placeholder="Nominal Gaji Pengganti"><br>
-            <button onclick="addDeduction()">Tambah Potongan</button>
-            <button onclick="printPDF()">Cetak PDF</button>
-            <button onclick="backupData()">Backup Data</button>
-            <input type="file" id="restore-file" accept=".json">
-            <button onclick="restoreData()">Restore Data</button>
-        </div>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script>
-        let currentUser = null;
-        let data = JSON.parse(localStorage.getItem('schoolData')) || {
-            users: [],
-            school: {},
-            gurus: [],
-            jadwals: [],
-            pelajarans: [],
-            siswas: [],
-            kelas: [],
-            salaries: {}
+      `;
+      
+      modal.querySelector('#edit-potongan-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        
+        const result = await window.dataSdk.update({
+          ...item,
+          tanggal: form.tanggal.value,
+          keterangan: form.keterangan.value.trim(),
+          nominal: parseFloat(form.nominal.value)
+        });
+
+        if (result.isOk) {
+          showToast('Data potongan gaji berhasil diperbarui');
+          modal.remove();
+        } else {
+          showToast('Gagal memperbarui data', 'error');
+        }
+      });
+
+      document.body.appendChild(modal);
+    }
+
+    function editItem(item) {
+      if (currentUser.role === 'guru') {
+        showToast('Guru tidak memiliki akses edit', 'error');
+        return;
+      }
+      editingItem = item;
+      renderApp();
+    }
+
+    function exportToPDF(data, title) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      doc.setFontSize(18);
+      doc.text(title, 14, 20);
+      
+      const tableData = data.map(item => {
+        const row = {};
+        Object.keys(item).forEach(key => {
+          if (key !== '__backendId' && key !== 'password' && key !== 'type') {
+            row[key] = item[key];
+          }
+        });
+        return Object.values(row);
+      });
+      
+      const headers = Object.keys(data[0] || {}).filter(k => 
+        k !== '__backendId' && k !== 'password' && k !== 'type'
+      );
+      
+      doc.autoTable({
+        head: [headers],
+        body: tableData,
+        startY: 30
+      });
+      
+      doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
+      showToast('PDF berhasil diunduh');
+    }
+
+    function backupData() {
+      const dataStr = JSON.stringify(allData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup berhasil diunduh');
+    }
+
+    function restoreData() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            showToast('Fitur restore akan segera tersedia', 'info');
+          } catch (error) {
+            showToast('File tidak valid', 'error');
+          }
         };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('show');
-            document.getElementById('content').classList.toggle('shift');
+    function calculateGaji(namaGuru, bulan, tahun) {
+      const gajiData = allData.find(d => 
+        d.type === 'gaji' && 
+        d.nama_guru === namaGuru && 
+        d.bulan === bulan && 
+        d.tahun === tahun
+      );
+      
+      if (!gajiData) return { perhari: 0, perbulan: 0, bulanKetiga: 0, bulanKeenam: 0 };
+      
+      const gajiPerHari = gajiData.gaji_harian;
+      const hariHadir = gajiData.hari_hadir;
+      const gajiDasar = gajiPerHari * hariHadir;
+      
+      // Hitung pengganti dan potongan untuk bulan ini saja
+      const penggantiList = allData.filter(d => 
+        d.type === 'guru_pengganti' && 
+        d.nama_guru === namaGuru
+      );
+      
+      const totalPenggantiBulanIni = penggantiList.reduce((sum, p) => sum + p.nominal, 0);
+      
+      const potonganList = allData.filter(d => 
+        d.type === 'potongan_gaji' && 
+        d.nama_guru === namaGuru
+      );
+      
+      const totalPotonganBulanIni = potonganList.reduce((sum, p) => sum + p.nominal, 0);
+      
+      // Bulan Pertama (Bulan ke-1)
+      const gajiBulanPertama = gajiDasar + totalPenggantiBulanIni - totalPotonganBulanIni;
+      
+      // Hitung total pengganti dan potongan untuk 3 bulan dari data aktual yang ada
+      const totalPengganti3Bulan = allData
+        .filter(d => d.type === 'guru_pengganti' && d.nama_guru === namaGuru)
+        .reduce((sum, p) => sum + p.nominal, 0);
+      
+      const totalPotongan3Bulan = allData
+        .filter(d => d.type === 'potongan_gaji' && d.nama_guru === namaGuru)
+        .reduce((sum, p) => sum + p.nominal, 0);
+      
+      // Hitung total pengganti dan potongan untuk 6 bulan dari data aktual yang ada
+      const totalPengganti6Bulan = allData
+        .filter(d => d.type === 'guru_pengganti' && d.nama_guru === namaGuru)
+        .reduce((sum, p) => sum + p.nominal, 0);
+      
+      const totalPotongan6Bulan = allData
+        .filter(d => d.type === 'potongan_gaji' && d.nama_guru === namaGuru)
+        .reduce((sum, p) => sum + p.nominal, 0);
+      
+      // Bulan Ketiga: Gaji dasar × 3 + total pengganti aktual - total potongan aktual
+      const gajiBulanKetiga = (gajiDasar * 3) + totalPengganti3Bulan - totalPotongan3Bulan;
+      
+      // Bulan Keenam: Gaji dasar × 6 + total pengganti aktual - total potongan aktual
+      const gajiBulanKeenam = (gajiDasar * 6) + totalPengganti6Bulan - totalPotongan6Bulan;
+      
+      return {
+        perhari: gajiPerHari,
+        perbulan: gajiBulanPertama,
+        bulanKetiga: gajiBulanKetiga,
+        bulanKeenam: gajiBulanKeenam,
+        gajiDasar: gajiDasar,
+        jumlahPenggantiFull: penggantiList.filter(p => p.kategori === 'full').length,
+        jumlahPenggantiSelingan: penggantiList.filter(p => p.kategori === 'selingan').length,
+        jumlahPotongan: potonganList.length,
+        totalPengganti: totalPenggantiBulanIni,
+        totalPotongan: totalPotonganBulanIni,
+        totalPengganti3Bulan: totalPengganti3Bulan,
+        totalPotongan3Bulan: totalPotongan3Bulan,
+        totalPengganti6Bulan: totalPengganti6Bulan,
+        totalPotongan6Bulan: totalPotongan6Bulan
+      };
+    }
+
+    function renderDashboard() {
+      const schoolData = allData.find(d => d.type === 'data_sekolah');
+      const totalGuru = allData.filter(d => d.type === 'guru').length;
+      const totalSiswa = allData.filter(d => d.type === 'siswa').length;
+      const totalKelas = allData.filter(d => d.type === 'kelas').length;
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-8 text-white">
+            <h1 class="text-3xl font-bold mb-2">${window.elementSdk?.config?.app_title || defaultConfig.app_title}</h1>
+            <p class="text-lg opacity-90">${window.elementSdk?.config?.welcome_message || defaultConfig.welcome_message}</p>
+            ${schoolData ? `<p class="mt-4 text-xl font-semibold">${schoolData.nama_sekolah}</p>` : ''}
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="card bg-white rounded-xl p-6 shadow-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-500 text-sm">Total Guru</p>
+                  <p class="text-3xl font-bold text-purple-600">${totalGuru}</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-lg">
+                  <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="card bg-white rounded-xl p-6 shadow-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-500 text-sm">Total Siswa</p>
+                  <p class="text-3xl font-bold text-blue-600">${totalSiswa}</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-lg">
+                  <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="card bg-white rounded-xl p-6 shadow-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-500 text-sm">Total Kelas</p>
+                  <p class="text-3xl font-bold text-green-600">${totalKelas}</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-lg">
+                  <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="card bg-white rounded-xl p-6 shadow-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gray-500 text-sm">Status</p>
+                  <p class="text-xl font-bold text-indigo-600">${currentUser.role === 'admin' ? 'Administrator' : 'Guru'}</p>
+                </div>
+                <div class="bg-indigo-100 p-3 rounded-lg">
+                  <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${schoolData ? `
+            <div class="bg-white rounded-xl p-6 shadow-lg">
+              <h2 class="text-xl font-bold mb-4 text-gray-800">Informasi Sekolah</h2>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p class="text-gray-500 text-sm">Nama Sekolah</p>
+                  <p class="font-semibold text-gray-800">${schoolData.nama_sekolah}</p>
+                </div>
+                <div>
+                  <p class="text-gray-500 text-sm">Alamat</p>
+                  <p class="font-semibold text-gray-800">${schoolData.alamat}</p>
+                </div>
+                <div>
+                  <p class="text-gray-500 text-sm">Telepon</p>
+                  <p class="font-semibold text-gray-800">${schoolData.telepon}</p>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderDataSekolah() {
+      const schoolData = allData.find(d => d.type === 'data_sekolah');
+      const isReadOnly = currentUser.role === 'guru';
+
+      return `
+        <div class="p-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Data Sekolah</h2>
+            <form onsubmit="handleDataSekolah(event)" class="space-y-4">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Sekolah</label>
+                <input type="text" name="nama_sekolah" value="${schoolData?.nama_sekolah || ''}" 
+                       ${isReadOnly ? 'readonly' : ''}
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${isReadOnly ? 'bg-gray-100' : ''}" required>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Alamat</label>
+                <textarea name="alamat" rows="3" ${isReadOnly ? 'readonly' : ''}
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${isReadOnly ? 'bg-gray-100' : ''}" required>${schoolData?.alamat || ''}</textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Telepon</label>
+                <input type="tel" name="telepon" value="${schoolData?.telepon || ''}" 
+                       ${isReadOnly ? 'readonly' : ''}
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${isReadOnly ? 'bg-gray-100' : ''}" required>
+              </div>
+              ${!isReadOnly ? `
+                <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                  Simpan Data
+                </button>
+              ` : '<p class="text-gray-500 italic">Anda hanya dapat melihat data</p>'}
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDataGuru() {
+      const guruList = allData.filter(d => d.type === 'guru');
+      const isReadOnly = currentUser.role === 'guru';
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Data Guru</h2>
+            ${!isReadOnly ? `
+              <form onsubmit="handleDataGuru(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Guru</label>
+                  <input type="text" name="nama_guru" value="${editingItem?.nama_guru || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                  <input type="email" name="email" value="${editingItem?.email || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Telepon</label>
+                  <input type="tel" name="telepon" value="${editingItem?.telepon || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Mata Pelajaran</label>
+                  <input type="text" name="mata_pelajaran" value="${editingItem?.mata_pelajaran || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div class="md:col-span-2">
+                  <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                    ${editingItem ? 'Update Data' : 'Tambah Guru'}
+                  </button>
+                  ${editingItem ? `<button type="button" onclick="editingItem=null; renderApp()" class="ml-2 bg-gray-500 text-white px-6 py-3 rounded-lg">Batal</button>` : ''}
+                </div>
+              </form>
+            ` : ''}
+
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold">Daftar Guru (${guruList.length})</h3>
+              <button onclick="exportToPDF(${JSON.stringify(guruList).replace(/"/g, '&quot;')}, 'Data Guru')" 
+                      class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
+                📄 Export PDF
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nama</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Telepon</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Mata Pelajaran</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${guruList.map(guru => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3">${guru.nama_guru}</td>
+                      <td class="px-4 py-3">${guru.email}</td>
+                      <td class="px-4 py-3">${guru.telepon}</td>
+                      <td class="px-4 py-3">${guru.mata_pelajaran}</td>
+                      <td class="px-4 py-3 space-x-2">
+                        <button onclick='viewItem(${JSON.stringify(guru).replace(/'/g, "\\'")}); event.stopPropagation();' class="text-blue-600 hover:text-blue-800">👁️</button>
+                        ${!isReadOnly ? `
+                          <button onclick='editItem(${JSON.stringify(guru).replace(/'/g, "\\'")}); event.stopPropagation();' class="text-green-600 hover:text-green-800">✏️</button>
+                          <button onclick='deleteItem(${JSON.stringify(guru).replace(/'/g, "\\'")}); event.stopPropagation();' class="text-red-600 hover:text-red-800">🗑️</button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderJadwalMengajar() {
+      const jadwalList = allData.filter(d => d.type === 'jadwal');
+      const guruList = allData.filter(d => d.type === 'guru');
+      const mapelList = allData.filter(d => d.type === 'mapel');
+      const kelasList = allData.filter(d => d.type === 'kelas');
+      const isReadOnly = currentUser.role === 'guru';
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Jadwal Mengajar</h2>
+            ${!isReadOnly ? `
+              <form onsubmit="handleJadwalMengajar(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Guru</label>
+                  <select name="nama_guru" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Guru</option>
+                    ${guruList.map(g => `<option value="${g.nama_guru}" ${editingItem?.nama_guru === g.nama_guru ? 'selected' : ''}>${g.nama_guru}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Mata Pelajaran</label>
+                  <select name="mata_pelajaran" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Mapel</option>
+                    ${mapelList.map(m => `<option value="${m.nama_mapel}" ${editingItem?.mata_pelajaran === m.nama_mapel ? 'selected' : ''}>${m.nama_mapel}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Kelas</label>
+                  <select name="kelas" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Kelas</option>
+                    ${kelasList.map(k => `<option value="${k.nama_kelas}" ${editingItem?.kelas === k.nama_kelas ? 'selected' : ''}>${k.nama_kelas}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Hari</label>
+                  <select name="hari" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Hari</option>
+                    ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map(h => 
+                      `<option value="${h}" ${editingItem?.hari === h ? 'selected' : ''}>${h}</option>`
+                    ).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Jam Mulai</label>
+                  <input type="time" name="jam_mulai" value="${editingItem?.jam_mulai || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Jam Selesai</label>
+                  <input type="time" name="jam_selesai" value="${editingItem?.jam_selesai || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div class="md:col-span-3">
+                  <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                    ${editingItem ? 'Update Jadwal' : 'Tambah Jadwal'}
+                  </button>
+                  ${editingItem ? `<button type="button" onclick="editingItem=null; renderApp()" class="ml-2 bg-gray-500 text-white px-6 py-3 rounded-lg">Batal</button>` : ''}
+                </div>
+              </form>
+            ` : ''}
+
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold">Daftar Jadwal (${jadwalList.length})</h3>
+              <button onclick="exportToPDF(${JSON.stringify(jadwalList).replace(/"/g, '&quot;')}, 'Jadwal Mengajar')" 
+                      class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
+                📄 Export PDF
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Guru</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Mata Pelajaran</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Kelas</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hari</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Jam</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${jadwalList.map(jadwal => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3">${jadwal.nama_guru}</td>
+                      <td class="px-4 py-3">${jadwal.mata_pelajaran}</td>
+                      <td class="px-4 py-3">${jadwal.kelas}</td>
+                      <td class="px-4 py-3">${jadwal.hari}</td>
+                      <td class="px-4 py-3">${jadwal.jam_mulai} - ${jadwal.jam_selesai}</td>
+                      <td class="px-4 py-3 space-x-2">
+                        <button onclick='viewItem(${JSON.stringify(jadwal)})' class="text-blue-600 hover:text-blue-800">👁️</button>
+                        ${!isReadOnly ? `
+                          <button onclick='editItem(${JSON.stringify(jadwal)})' class="text-green-600 hover:text-green-800">✏����</button>
+                          <button onclick='deleteItem(${JSON.stringify(jadwal)})' class="text-red-600 hover:text-red-800">🗑️</button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMataPelajaran() {
+      const mapelList = allData.filter(d => d.type === 'mapel');
+      const isReadOnly = currentUser.role === 'guru';
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Mata Pelajaran</h2>
+            ${!isReadOnly ? `
+              <form onsubmit="handleMataPelajaran(event)" class="grid grid-cols-1 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Mata Pelajaran</label>
+                  <input type="text" name="nama_mapel" value="${editingItem?.nama_mapel || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Keterangan</label>
+                  <textarea name="keterangan" rows="3"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">${editingItem?.keterangan || ''}</textarea>
+                </div>
+                <div>
+                  <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                    ${editingItem ? 'Update Data' : 'Tambah Mata Pelajaran'}
+                  </button>
+                  ${editingItem ? `<button type="button" onclick="editingItem=null; renderApp()" class="ml-2 bg-gray-500 text-white px-6 py-3 rounded-lg">Batal</button>` : ''}
+                </div>
+              </form>
+            ` : ''}
+
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold">Daftar Mata Pelajaran (${mapelList.length})</h3>
+              <button onclick="exportToPDF(${JSON.stringify(mapelList).replace(/"/g, '&quot;')}, 'Mata Pelajaran')" 
+                      class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
+                📄 Export PDF
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nama Mata Pelajaran</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Keterangan</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${mapelList.map(mapel => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-semibold">${mapel.nama_mapel}</td>
+                      <td class="px-4 py-3">${mapel.keterangan || '-'}</td>
+                      <td class="px-4 py-3 space-x-2">
+                        <button onclick='viewItem(${JSON.stringify(mapel).replace(/'/g, "\\'")}); event.stopPropagation();' class="text-blue-600 hover:text-blue-800">👁️</button>
+                        ${!isReadOnly ? `
+                          <button onclick='editItem(${JSON.stringify(mapel).replace(/'/g, "\\'")}); event.stopPropagation();' class="text-green-600 hover:text-green-800">✏️</button>
+                          <button onclick='deleteItem(${JSON.stringify(mapel).replace(/'/g, "\\'")}); event.stopPropagation();' class="text-red-600 hover:text-red-800">🗑️</button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDataSiswa() {
+      const siswaList = allData.filter(d => d.type === 'siswa');
+      const kelasList = allData.filter(d => d.type === 'kelas');
+      const isReadOnly = currentUser.role === 'guru';
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Data Siswa</h2>
+            ${!isReadOnly ? `
+              <form onsubmit="handleDataSiswa(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Siswa</label>
+                  <input type="text" name="nama_siswa" value="${editingItem?.nama_siswa || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">NIS</label>
+                  <input type="text" name="nis" value="${editingItem?.nis || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Kelas</label>
+                  <select name="kelas" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Kelas</option>
+                    ${kelasList.map(k => `<option value="${k.nama_kelas}" ${editingItem?.kelas === k.nama_kelas ? 'selected' : ''}>${k.nama_kelas}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Alamat</label>
+                  <input type="text" name="alamat" value="${editingItem?.alamat || ''}"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div class="md:col-span-2">
+                  <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                    ${editingItem ? 'Update Data' : 'Tambah Siswa'}
+                  </button>
+                  ${editingItem ? `<button type="button" onclick="editingItem=null; renderApp()" class="ml-2 bg-gray-500 text-white px-6 py-3 rounded-lg">Batal</button>` : ''}
+                </div>
+              </form>
+            ` : ''}
+
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold">Daftar Siswa (${siswaList.length})</h3>
+              <button onclick="exportToPDF(${JSON.stringify(siswaList).replace(/"/g, '&quot;')}, 'Data Siswa')" 
+                      class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
+                📄 Export PDF
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">NIS</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nama</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Kelas</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Alamat</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${siswaList.map(siswa => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-semibold">${siswa.nis}</td>
+                      <td class="px-4 py-3">${siswa.nama_siswa}</td>
+                      <td class="px-4 py-3">${siswa.kelas}</td>
+                      <td class="px-4 py-3">${siswa.alamat}</td>
+                      <td class="px-4 py-3 space-x-2">
+                        <button onclick='viewItem(${JSON.stringify(siswa)})' class="text-blue-600 hover:text-blue-800">����️</button>
+                        ${!isReadOnly ? `
+                          <button onclick='editItem(${JSON.stringify(siswa)})' class="text-green-600 hover:text-green-800">✏️</button>
+                          <button onclick='deleteItem(${JSON.stringify(siswa)})' class="text-red-600 hover:text-red-800">🗑️</button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTambahKelas() {
+      const kelasList = allData.filter(d => d.type === 'kelas');
+      const guruList = allData.filter(d => d.type === 'guru');
+      const isReadOnly = currentUser.role === 'guru';
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Kelola Kelas</h2>
+            ${!isReadOnly ? `
+              <form onsubmit="handleTambahKelas(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Kelas</label>
+                  <input type="text" name="nama_kelas" value="${editingItem?.nama_kelas || ''}"
+                         placeholder="Contoh: X-A, XI IPA 1"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Wali Kelas</label>
+                  <select name="wali_kelas" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Wali Kelas</option>
+                    ${guruList.map(g => `<option value="${g.nama_guru}" ${editingItem?.wali_kelas === g.nama_guru ? 'selected' : ''}>${g.nama_guru}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="md:col-span-2">
+                  <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold">
+                    ${editingItem ? 'Update Kelas' : 'Tambah Kelas'}
+                  </button>
+                  ${editingItem ? `<button type="button" onclick="editingItem=null; renderApp()" class="ml-2 bg-gray-500 text-white px-6 py-3 rounded-lg">Batal</button>` : ''}
+                </div>
+              </form>
+            ` : ''}
+
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold">Daftar Kelas (${kelasList.length})</h3>
+              <button onclick="exportToPDF(${JSON.stringify(kelasList).replace(/"/g, '&quot;')}, 'Data Kelas')" 
+                      class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
+                📄 Export PDF
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              ${kelasList.map(kelas => {
+                const siswaCount = allData.filter(d => d.type === 'siswa' && d.kelas === kelas.nama_kelas).length;
+                return `
+                  <div class="card bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                    <h4 class="text-2xl font-bold text-indigo-700 mb-2">${kelas.nama_kelas}</h4>
+                    <p class="text-sm text-gray-600 mb-1">Wali Kelas: <span class="font-semibold">${kelas.wali_kelas}</span></p>
+                    <p class="text-sm text-gray-600 mb-4">Jumlah Siswa: <span class="font-semibold">${siswaCount}</span></p>
+                    <div class="flex gap-2">
+                      <button onclick='viewItem(${JSON.stringify(kelas).replace(/'/g, "\\'")}); event.stopPropagation();' class="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600">
+                        Lihat
+                      </button>
+                      ${!isReadOnly ? `
+                        <button onclick='editItem(${JSON.stringify(kelas).replace(/'/g, "\\'")}); event.stopPropagation();' class="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-600">
+                          Edit
+                        </button>
+                        <button onclick='deleteItem(${JSON.stringify(kelas).replace(/'/g, "\\'")}); event.stopPropagation();' class="flex-1 bg-red-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-600">
+                          Hapus
+                        </button>
+                      ` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRincianGaji() {
+      const guruList = allData.filter(d => d.type === 'guru');
+      const gajiList = allData.filter(d => d.type === 'gaji');
+      const isReadOnly = currentUser.role === 'guru';
+
+      const selectedGuru = document.getElementById('rincian-filter-guru')?.value || '';
+      const selectedBulan = document.getElementById('rincian-filter-bulan')?.value || '';
+      const selectedTahun = document.getElementById('rincian-filter-tahun')?.value || '';
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">📊 Rincian Gaji Guru (Detail Lengkap)</h2>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+              <p class="text-sm text-blue-700">
+                <strong>Informasi:</strong> Halaman ini menampilkan rincian gaji asli (sebelum diperbarui) untuk setiap guru dengan breakdown lengkap per periode waktu.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Filter Guru</label>
+                <select id="rincian-filter-guru" onchange="renderApp()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="">Semua Guru</option>
+                  ${guruList.map(g => `<option value="${g.nama_guru}" ${selectedGuru === g.nama_guru ? 'selected' : ''}>${g.nama_guru}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Filter Bulan</label>
+                <select id="rincian-filter-bulan" onchange="renderApp()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="">Semua Bulan</option>
+                  ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map(b => 
+                    `<option value="${b}" ${selectedBulan === b ? 'selected' : ''}>${b}</option>`
+                  ).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Filter Tahun</label>
+                <input type="number" id="rincian-filter-tahun" value="${selectedTahun}" onchange="renderApp()" 
+                       placeholder="Semua Tahun" min="2000" max="2100"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              </div>
+            </div>
+
+            ${gajiList.filter(gj => 
+              (!selectedGuru || gj.nama_guru === selectedGuru) &&
+              (!selectedBulan || gj.bulan === selectedBulan) &&
+              (!selectedTahun || gj.tahun === selectedTahun)
+            ).length === 0 ? `
+              <div class="text-center py-12">
+                <p class="text-gray-500 text-lg">Tidak ada data gaji untuk filter yang dipilih</p>
+              </div>
+            ` : ''}
+
+            ${guruList.filter(g => !selectedGuru || g.nama_guru === selectedGuru).map(guru => {
+              const gajiGuru = gajiList.filter(gj => 
+                gj.nama_guru === guru.nama_guru &&
+                (!selectedBulan || gj.bulan === selectedBulan) &&
+                (!selectedTahun || gj.tahun === selectedTahun)
+              );
+
+              if (gajiGuru.length === 0) return '';
+
+              return gajiGuru.map(gj => {
+                const calc = calculateGaji(guru.nama_guru, gj.bulan, gj.tahun);
+                
+                const penggantiList = allData.filter(d => 
+                  d.type === 'guru_pengganti' && 
+                  d.nama_guru === guru.nama_guru
+                );
+
+                const potonganList = allData.filter(d => 
+                  d.type === 'potongan_gaji' && 
+                  d.nama_guru === guru.nama_guru
+                );
+
+                const gajiHarian = gj.gaji_harian;
+                const hariHadir = gj.hari_hadir;
+                const gajiBulanan = gajiHarian * hariHadir;
+                const gaji3Bulan = gajiBulanan * 3;
+                const gaji6Bulan = gajiBulanan * 6;
+
+                const totalPengganti1Bulan = calc.totalPengganti;
+                const totalPengganti3Bulan = calc.totalPengganti3Bulan;
+                const totalPengganti6Bulan = calc.totalPengganti6Bulan;
+
+                const totalPotongan1Bulan = calc.totalPotongan;
+                const totalPotongan3Bulan = calc.totalPotongan3Bulan;
+                const totalPotongan6Bulan = calc.totalPotongan6Bulan;
+
+                const totalBersih1Bulan = gajiBulanan + totalPengganti1Bulan - totalPotongan1Bulan;
+                const totalBersih3Bulan = gaji3Bulan + totalPengganti3Bulan - totalPotongan3Bulan;
+                const totalBersih6Bulan = gaji6Bulan + totalPengganti6Bulan - totalPotongan6Bulan;
+
+                return `
+                  <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 mb-6 border-2 border-indigo-200">
+                    <div class="mb-6">
+                      <h3 class="text-3xl font-bold text-indigo-800">${guru.nama_guru}</h3>
+                      <p class="text-lg text-gray-700 font-semibold">${gj.bulan} ${gj.tahun}</p>
+                    </div>
+
+                    <!-- GAJI ASLI (SEBELUM DIPERBARUI) -->
+                    <div class="mb-6">
+                      <h4 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <span class="bg-blue-600 text-white px-3 py-1 rounded-lg mr-3">💵</span>
+                        Gaji Asli (Sebelum Diperbarui)
+                      </h4>
+                      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white rounded-lg p-4 border-2 border-blue-300 shadow-md">
+                          <p class="text-xs text-gray-600 uppercase font-semibold mb-1">Per Hari</p>
+                          <p class="text-2xl font-bold text-blue-600">Rp ${gajiHarian.toLocaleString('id-ID')}</p>
+                          <p class="text-xs text-gray-500 mt-1">Tarif harian</p>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border-2 border-green-300 shadow-md">
+                          <p class="text-xs text-gray-600 uppercase font-semibold mb-1">Bulan Pertama</p>
+                          <p class="text-2xl font-bold text-green-600">Rp ${gajiBulanan.toLocaleString('id-ID')}</p>
+                          <p class="text-xs text-gray-500 mt-1">${gajiHarian.toLocaleString('id-ID')} × ${hariHadir} hari</p>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border-2 border-purple-300 shadow-md">
+                          <p class="text-xs text-gray-600 uppercase font-semibold mb-1">Bulan Ketiga</p>
+                          <p class="text-2xl font-bold text-purple-600">Rp ${gaji3Bulan.toLocaleString('id-ID')}</p>
+                          <p class="text-xs text-gray-500 mt-1">${gajiBulanan.toLocaleString('id-ID')} × 3 bulan</p>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border-2 border-indigo-300 shadow-md">
+                          <p class="text-xs text-gray-600 uppercase font-semibold mb-1">Bulan Keenam</p>
+                          <p class="text-2xl font-bold text-indigo-600">Rp ${gaji6Bulan.toLocaleString('id-ID')}</p>
+                          <p class="text-xs text-gray-500 mt-1">${gajiBulanan.toLocaleString('id-ID')} × 6 bulan</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- GURU PENGGANTI -->
+                    <div class="mb-6">
+                      <h4 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+                        <span class="flex items-center">
+                          <span class="bg-green-600 text-white px-3 py-1 rounded-lg mr-3">➕</span>
+                          Rincian Guru Pengganti
+                        </span>
+                        <button onclick="showGuruPenggantiDetail('${guru.nama_guru}', '${gj.bulan}', '${gj.tahun}')" 
+                                class="text-sm bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">
+                          Lihat Detail →
+                        </button>
+                      </h4>
+                      
+                      ${penggantiList.length === 0 ? `
+                        <div class="bg-white rounded-lg p-4 text-center">
+                          <p class="text-gray-500">Tidak ada data guru pengganti</p>
+                        </div>
+                      ` : `
+                        <div class="bg-white rounded-lg p-4">
+                          <div class="grid grid-cols-2 gap-4">
+                            <div>
+                              <p class="text-sm text-gray-600">Jumlah Pengganti Full:</p>
+                              <p class="text-xl font-bold text-green-600">${calc.jumlahPenggantiFull}x</p>
+                            </div>
+                            <div>
+                              <p class="text-sm text-gray-600">Jumlah Pengganti Selingan:</p>
+                              <p class="text-xl font-bold text-blue-600">${calc.jumlahPenggantiSelingan}x</p>
+                            </div>
+                          </div>
+                        </div>
+                      `}
+                    </div>
+
+                    <!-- POTONGAN GAJI -->
+                    <div class="mb-6">
+                      <h4 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+                        <span class="flex items-center">
+                          <span class="bg-red-600 text-white px-3 py-1 rounded-lg mr-3">➖</span>
+                          Rincian Potongan Gaji
+                        </span>
+                        <button onclick="showPotonganDetail('${guru.nama_guru}', '${gj.bulan}', '${gj.tahun}')" 
+                                class="text-sm bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                          Lihat Detail →
+                        </button>
+                      </h4>
+                      
+                      ${potonganList.length === 0 ? `
+                        <div class="bg-white rounded-lg p-4 text-center">
+                          <p class="text-gray-500">Tidak ada potongan gaji</p>
+                        </div>
+                      ` : `
+                        <div class="bg-white rounded-lg p-4">
+                          <div>
+                            <p class="text-sm text-gray-600">Jumlah Potongan:</p>
+                            <p class="text-xl font-bold text-red-600">${calc.jumlahPotongan}x</p>
+                          </div>
+                        </div>
+                      `}
+                    </div>
+
+                    <!-- TOTAL BERSIH -->
+                    <div>
+                      <h4 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <span class="bg-yellow-600 text-white px-3 py-1 rounded-lg mr-3">💰</span>
+                        Total Gaji Bersih (Setelah Perhitungan)
+                      </h4>
+                      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg p-4 shadow-lg text-white">
+                          <p class="text-xs uppercase font-semibold mb-1">Per Hari</p>
+                          <p class="text-2xl font-bold">Rp ${gajiHarian.toLocaleString('id-ID')}</p>
+                          <p class="text-xs mt-1 opacity-90">Gaji harian</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 shadow-lg text-white">
+                          <p class="text-xs uppercase font-semibold mb-1">Bulan Pertama</p>
+                          <p class="text-2xl font-bold">Rp ${totalBersih1Bulan.toLocaleString('id-ID')}</p>
+                          <p class="text-xs mt-1 opacity-90">Gaji + Pengganti - Potongan</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 shadow-lg text-white">
+                          <p class="text-xs uppercase font-semibold mb-1">Bulan Ketiga</p>
+                          <p class="text-2xl font-bold">Rp ${totalBersih3Bulan.toLocaleString('id-ID')}</p>
+                          <p class="text-xs mt-1 opacity-90">Total 3 bulan</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 shadow-lg text-white">
+                          <p class="text-xs uppercase font-semibold mb-1">Bulan Keenam</p>
+                          <p class="text-2xl font-bold">Rp ${totalBersih6Bulan.toLocaleString('id-ID')}</p>
+                          <p class="text-xs mt-1 opacity-90">Total 6 bulan</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- BREAKDOWN DETAIL -->
+                    <div class="mt-6 bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
+                      <p class="text-sm font-bold text-blue-800 mb-2">📋 Breakdown Perhitungan Bulan Pertama:</p>
+                      <div class="text-sm text-blue-700 space-y-1">
+                        <div class="flex justify-between">
+                          <span>• Gaji Dasar (${gajiHarian.toLocaleString('id-ID')} × ${hariHadir} hari):</span>
+                          <span class="font-bold">Rp ${gajiBulanan.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex justify-between text-green-700">
+                          <span>• + Pendapatan Guru Pengganti:</span>
+                          <span class="font-bold">Rp ${totalPengganti1Bulan.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex justify-between text-red-700">
+                          <span>• - Potongan Gaji:</span>
+                          <span class="font-bold">Rp ${totalPotongan1Bulan.toLocaleString('id-ID')}</span>
+                        </div>
+                        <hr class="border-blue-300 my-2">
+                        <div class="flex justify-between text-base font-bold text-blue-900">
+                          <span>= Total Bersih Bulan Pertama:</span>
+                          <span>Rp ${totalBersih1Bulan.toLocaleString('id-ID')}</span>
+                        </div>
+                      </div>
+                      
+                      <p class="text-sm font-bold text-blue-800 mb-2 mt-4">📊 Perhitungan Akumulasi:</p>
+                      <div class="text-sm text-blue-700 space-y-1">
+                        <div class="flex justify-between">
+                          <span>• Bulan Ketiga = (Gaji Dasar × 3) + Total Pengganti Aktual - Total Potongan Aktual:</span>
+                          <span class="font-bold">Rp ${totalBersih3Bulan.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span>• Bulan Keenam = (Gaji Dasar × 6) + Total Pengganti Aktual - Total Potongan Aktual:</span>
+                          <span class="font-bold">Rp ${totalBersih6Bulan.toLocaleString('id-ID')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderGajiGuru() {
+      const guruList = allData.filter(d => d.type === 'guru');
+      const gajiList = allData.filter(d => d.type === 'gaji');
+      const isReadOnly = currentUser.role === 'guru';
+      
+      const selectedGuru = document.getElementById('filter-guru')?.value || '';
+      const selectedBulan = document.getElementById('filter-bulan')?.value || '';
+      const selectedTahun = document.getElementById('filter-tahun')?.value || '';
+      const selectedPeriode = document.getElementById('filter-periode')?.value || 'perbulan';
+
+      return `
+        <div class="p-6 space-y-6">
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Gaji Guru</h2>
+            
+            ${!isReadOnly ? `
+              <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                <p class="text-sm text-blue-700">
+                  <strong>Catatan:</strong> Input gaji harian cukup sekali untuk setiap bulan, sistem akan menghitung otomatis berdasarkan jumlah hari hadir.
+                </p>
+              </div>
+
+              <form onsubmit="handleGajiGuru(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Guru</label>
+                  <select name="nama_guru" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Guru</option>
+                    ${guruList.map(g => `<option value="${g.nama_guru}" ${editingItem?.nama_guru === g.nama_guru ? 'selected' : ''}>${g.nama_guru}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Bulan</label>
+                  <select name="bulan" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Bulan</option>
+                    ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((b, i) => 
+                      `<option value="${b}" ${editingItem?.bulan === b ? 'selected' : ''}>${b}</option>`
+                    ).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Tahun</label>
+                  <input type="number" name="tahun" value="${editingItem?.tahun || new Date().getFullYear()}" 
+                         min="2000" max="2100"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Gaji Harian (Rp)</label>
+                  <input type="number" name="gaji_harian" value="${editingItem?.gaji_harian || ''}" 
+                         min="0" step="1000"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Jumlah Hari Hadir</label>
+                  <input type="number" name="hari_hadir" value="${editingItem?.hari_hadir || ''}" 
+                         min="0" max="31"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div class="flex items-end">
+                  <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold w-full">
+                    ${editingItem ? 'Update Data' : 'Tambah Data Gaji'}
+                  </button>
+                </div>
+                ${editingItem ? `
+                  <div class="md:col-span-3">
+                    <button type="button" onclick="editingItem=null; renderApp()" class="bg-gray-500 text-white px-6 py-3 rounded-lg">
+                      Batal
+                    </button>
+                  </div>
+                ` : ''}
+              </form>
+
+              <hr class="my-6">
+
+              <h3 class="text-xl font-bold mb-4 text-gray-800">Tambah Guru Pengganti</h3>
+              <form onsubmit="handleGuruPengganti(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Guru Pengganti</label>
+                  <select name="nama_guru" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Guru</option>
+                    ${guruList.map(g => `<option value="${g.nama_guru}">${g.nama_guru}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal</label>
+                  <input type="date" name="tanggal" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Kategori</label>
+                  <select name="kategori" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="full">Full</option>
+                    <option value="selingan">Selingan</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nominal (Rp)</label>
+                  <input type="number" name="nominal" min="0" step="1000"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Keterangan</label>
+                  <input type="text" name="keterangan" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="flex items-end">
+                  <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold w-full hover:bg-green-700">
+                    Tambah Guru Pengganti
+                  </button>
+                </div>
+              </form>
+
+              <hr class="my-6">
+
+              <h3 class="text-xl font-bold mb-4 text-gray-800">Potongan Gaji Guru</h3>
+              <form onsubmit="handlePotonganGaji(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Guru (Yang Dipotong)</label>
+                  <select name="nama_guru" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                    <option value="">Pilih Guru</option>
+                    ${guruList.map(g => `<option value="${g.nama_guru}">${g.nama_guru}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal</label>
+                  <input type="date" name="tanggal" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Keterangan</label>
+                  <input type="text" name="keterangan" placeholder="Alasan potongan"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Jumlah Potongan (Rp)</label>
+                  <input type="number" name="nominal" min="0" step="1000"
+                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                </div>
+                <div class="md:col-span-2 flex items-end">
+                  <button type="submit" class="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold w-full hover:bg-orange-700">
+                    Tambah Potongan
+                  </button>
+                </div>
+              </form>
+            ` : ''}
+
+            <hr class="my-6">
+
+            <h3 class="text-xl font-bold mb-4 text-gray-800">Rekapitulasi Gaji</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Filter Guru</label>
+                <select id="filter-guru" onchange="renderApp()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="">Semua Guru</option>
+                  ${guruList.map(g => `<option value="${g.nama_guru}" ${selectedGuru === g.nama_guru ? 'selected' : ''}>${g.nama_guru}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Filter Bulan</label>
+                <select id="filter-bulan" onchange="renderApp()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="">Semua Bulan</option>
+                  ${['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map(b => 
+                    `<option value="${b}" ${selectedBulan === b ? 'selected' : ''}>${b}</option>`
+                  ).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Filter Tahun</label>
+                <input type="number" id="filter-tahun" value="${selectedTahun}" onchange="renderApp()" 
+                       placeholder="Semua Tahun" min="2000" max="2100"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Periode Gaji</label>
+                <select id="filter-periode" onchange="renderApp()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="perhari" ${selectedPeriode === 'perhari' ? 'selected' : ''}>Per Hari</option>
+                  <option value="perbulan" ${selectedPeriode === 'perbulan' ? 'selected' : ''}>Bulan Pertama</option>
+                  <option value="bulanketiga" ${selectedPeriode === 'bulanketiga' ? 'selected' : ''}>Bulan Ketiga</option>
+                  <option value="bulankeenam" ${selectedPeriode === 'bulankeenam' ? 'selected' : ''}>Bulan Keenam</option>
+                </select>
+              </div>
+            </div>
+
+            ${guruList.filter(g => !selectedGuru || g.nama_guru === selectedGuru).map(guru => {
+              const gajiGuru = gajiList.filter(gj => 
+                gj.nama_guru === guru.nama_guru &&
+                (!selectedBulan || gj.bulan === selectedBulan) &&
+                (!selectedTahun || gj.tahun === selectedTahun)
+              );
+
+              if (gajiGuru.length === 0) return '';
+
+              return gajiGuru.map(gj => {
+                const calc = calculateGaji(guru.nama_guru, gj.bulan, gj.tahun);
+                
+                let gajiDisplay, gajiLabel, multiplier;
+                if (selectedPeriode === 'perhari') {
+                  gajiDisplay = calc.perhari;
+                  gajiLabel = 'Gaji Per Hari';
+                  multiplier = 1;
+                } else if (selectedPeriode === 'perbulan') {
+                  gajiDisplay = calc.perbulan;
+                  gajiLabel = 'Gaji Bulan Pertama';
+                  multiplier = 1;
+                } else if (selectedPeriode === 'bulanketiga') {
+                  gajiDisplay = calc.bulanKetiga;
+                  gajiLabel = 'Gaji Bulan Ketiga (Total 3 Bulan)';
+                  multiplier = 3;
+                } else {
+                  gajiDisplay = calc.bulanKeenam;
+                  gajiLabel = 'Gaji Bulan Keenam (Total 6 Bulan)';
+                  multiplier = 6;
+                }
+
+                let guruPenggantiMultiplied, potonganMultiplied;
+                if (selectedPeriode === 'perhari') {
+                  guruPenggantiMultiplied = 0;
+                  potonganMultiplied = 0;
+                } else if (selectedPeriode === 'perbulan') {
+                  guruPenggantiMultiplied = calc.totalPengganti;
+                  potonganMultiplied = calc.totalPotongan;
+                } else if (selectedPeriode === 'bulanketiga') {
+                  guruPenggantiMultiplied = calc.totalPengganti3Bulan;
+                  potonganMultiplied = calc.totalPotongan3Bulan;
+                } else {
+                  guruPenggantiMultiplied = calc.totalPengganti6Bulan;
+                  potonganMultiplied = calc.totalPotongan6Bulan;
+                }
+                
+                return `
+                  <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 mb-6 border border-purple-200">
+                    <div class="flex justify-between items-start mb-4">
+                      <div>
+                        <h4 class="text-2xl font-bold text-indigo-700">${guru.nama_guru}</h4>
+                        <p class="text-gray-600">${gj.bulan} ${gj.tahun}</p>
+                        <p class="text-sm font-semibold text-purple-600 mt-1">${gajiLabel}</p>
+                      </div>
+                      ${!isReadOnly ? `
+                        <div class="flex gap-2">
+                          <button onclick='editItem(${JSON.stringify(gj)})' class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">
+                            Edit
+                          </button>
+                          <button onclick='deleteItem(${JSON.stringify(gj)})' class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                            Hapus
+                          </button>
+                        </div>
+                      ` : ''}
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div class="bg-white rounded-lg p-4">
+                        <p class="text-sm text-gray-600">Gaji Per Hari</p>
+                        <p class="text-xl font-bold text-green-600">Rp ${calc.perhari.toLocaleString('id-ID')}</p>
+                      </div>
+                      <div class="bg-white rounded-lg p-4">
+                        <p class="text-sm text-gray-600">Bulan Pertama</p>
+                        <p class="text-xl font-bold text-blue-600">Rp ${calc.perbulan.toLocaleString('id-ID')}</p>
+                      </div>
+                      <div class="bg-white rounded-lg p-4">
+                        <p class="text-sm text-gray-600">Bulan Ketiga</p>
+                        <p class="text-xl font-bold text-purple-600">Rp ${calc.bulanKetiga.toLocaleString('id-ID')}</p>
+                      </div>
+                      <div class="bg-white rounded-lg p-4">
+                        <p class="text-sm text-gray-600">Bulan Keenam</p>
+                        <p class="text-xl font-bold text-indigo-600">Rp ${calc.bulanKeenam.toLocaleString('id-ID')}</p>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div class="bg-white rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                          <p class="text-sm font-semibold text-gray-700">Detail Guru Pengganti</p>
+                          <button onclick="showGuruPenggantiDetail('${guru.nama_guru}', '${gj.bulan}', '${gj.tahun}')" 
+                                  class="text-blue-600 hover:text-blue-800 text-xs font-semibold">
+                            Lihat Detail →
+                          </button>
+                        </div>
+                        <div class="space-y-1 text-sm">
+                          <p>Jumlah Pengganti Full: <span class="font-bold text-green-600">${calc.jumlahPenggantiFull}x</span></p>
+                          <p>Jumlah Pengganti Selingan: <span class="font-bold text-blue-600">${calc.jumlahPenggantiSelingan}x</span></p>
+                        </div>
+                      </div>
+                      <div class="bg-white rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                          <p class="text-sm font-semibold text-gray-700">Detail Potongan</p>
+                          <button onclick="showPotonganDetail('${guru.nama_guru}', '${gj.bulan}', '${gj.tahun}')" 
+                                  class="text-red-600 hover:text-red-800 text-xs font-semibold">
+                            Lihat Detail →
+                          </button>
+                        </div>
+                        <div class="space-y-1 text-sm">
+                          <p>Jumlah Potongan: <span class="font-bold text-red-600">${calc.jumlahPotongan}x</span></p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 space-y-3">
+                      <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
+                        <p class="text-sm font-semibold text-yellow-800 mb-2">Detail Perhitungan ${gajiLabel}:</p>
+                        <div class="space-y-1 text-sm text-yellow-700">
+                          ${selectedPeriode === 'perhari' ? `
+                            <div class="flex justify-between">
+                              <span>Gaji Harian:</span>
+                              <span class="font-bold">Rp ${calc.perhari.toLocaleString('id-ID')}</span>
+                            </div>
+                          ` : `
+                            <div class="flex justify-between">
+                              <span>Gaji Dasar (Rp ${gj.gaji_harian.toLocaleString('id-ID')} × ${gj.hari_hadir} hari)${multiplier > 1 ? ` × ${multiplier} bulan` : ''}:</span>
+                              <span class="font-bold">Rp ${(gj.gaji_harian * gj.hari_hadir * multiplier).toLocaleString('id-ID')}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span>+ Pendapatan Guru Pengganti${selectedPeriode === 'bulanketiga' || selectedPeriode === 'bulankeenam' ? ' (Total Aktual)' : ''}:</span>
+                              <span class="font-bold text-green-700">Rp ${guruPenggantiMultiplied.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span>- Potongan Gaji${selectedPeriode === 'bulanketiga' || selectedPeriode === 'bulankeenam' ? ' (Total Aktual)' : ''}:</span>
+                              <span class="font-bold text-red-700">Rp ${potonganMultiplied.toLocaleString('id-ID')}</span>
+                            </div>
+                            <hr class="border-yellow-300 my-2">
+                            <div class="flex justify-between font-bold text-base">
+                              <span>Total Bersih ${gajiLabel}:</span>
+                              <span>Rp ${gajiDisplay.toLocaleString('id-ID')}</span>
+                            </div>
+                          `}
+                        </div>
+                      </div>
+
+                      <div class="bg-indigo-600 text-white rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                          <span class="text-lg font-semibold">Total Pendapatan Bersih (${gajiLabel}):</span>
+                          <span class="text-2xl font-bold">Rp ${gajiDisplay.toLocaleString('id-ID')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSidebar() {
+      return `
+        <div class="${sidebarOpen ? 'w-64' : 'w-0'} sidebar-transition bg-gradient-to-b from-indigo-800 to-purple-900 h-full overflow-hidden">
+          <div class="p-6">
+            <h2 class="text-white text-xl font-bold mb-8">📚 Menu Admin</h2>
+            <nav class="space-y-2">
+              ${[
+                { view: 'dashboard', icon: '🏠', label: 'Dashboard' },
+                { view: 'data_sekolah', icon: '🏫', label: 'Data Sekolah' },
+                { view: 'data_guru', icon: '👨‍🏫', label: 'Data Guru' },
+                { view: 'jadwal', icon: '���', label: 'Jadwal Mengajar' },
+                { view: 'mapel', icon: '📚', label: 'Mata Pelajaran' },
+                { view: 'siswa', icon: '👨‍🎓', label: 'Data Siswa' },
+                { view: 'kelas', icon: '🏛️', label: 'Kelola Kelas' },
+                { view: 'gaji', icon: '💰', label: 'Gaji Guru' },
+                { view: 'rincian_gaji', icon: '📊', label: 'Rincian Gaji' }
+              ].map(item => `
+                <button onclick="currentView='${item.view}'; editingItem=null; renderApp()" 
+                        class="w-full text-left px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors ${currentView === item.view ? 'bg-white bg-opacity-20' : ''}">
+                  <span class="mr-3">${item.icon}</span>${item.label}
+                </button>
+              `).join('')}
+              
+              <hr class="border-white border-opacity-20 my-4">
+              
+              ${currentUser.role === 'admin' ? `
+                <button onclick="backupData()" class="w-full text-left px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+                  <span class="mr-3">💾</span>Backup Data
+                </button>
+                <button onclick="restoreData()" class="w-full text-left px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+                  <span class="mr-3">📥</span>Restore Data
+                </button>
+              ` : ''}
+              
+              <button onclick="handleLogout()" class="w-full text-left px-4 py-3 rounded-lg text-white hover:bg-red-600 transition-colors">
+                <span class="mr-3">����</span>Logout
+              </button>
+            </nav>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderApp() {
+      const app = document.getElementById('app');
+      
+      if (!currentUser) {
+        if (currentView === 'register') {
+          app.innerHTML = `
+            <div class="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-purple-600 to-indigo-700">
+              <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+                <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">Registrasi</h2>
+                <form onsubmit="handleRegister(event)" class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                    <input type="email" name="email" 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+                    <input type="text" name="username" 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                    <input type="password" name="password" 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                    <select name="role" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                      <option value="admin">Admin</option>
+                      <option value="guru">Guru</option>
+                    </select>
+                  </div>
+                  <button type="submit" class="btn-primary w-full text-white px-6 py-3 rounded-lg font-bold text-lg">
+                    Daftar
+                  </button>
+                </form>
+                <p class="text-center mt-4 text-gray-600">
+                  Sudah punya akun? 
+                  <button onclick="currentView='login'; renderApp()" class="text-purple-600 font-semibold hover:underline">
+                    Login
+                  </button>
+                </p>
+              </div>
+            </div>
+          `;
+        } else {
+          app.innerHTML = `
+            <div class="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-purple-600 to-indigo-700">
+              <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+                <div class="text-center mb-8">
+                  <h1 class="text-4xl font-bold text-gray-800 mb-2">🎓 Sistem Administrasi</h1>
+                  <p class="text-gray-600">Selamat datang! Silakan login</p>
+                </div>
+                <form onsubmit="handleLogin(event)" class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+                    <input type="text" name="username" 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                    <input type="password" name="password" 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                  </div>
+                  <button type="submit" class="btn-primary w-full text-white px-6 py-3 rounded-lg font-bold text-lg">
+                    Login
+                  </button>
+                </form>
+                <p class="text-center mt-4 text-gray-600">
+                  Belum punya akun? 
+                  <button onclick="currentView='register'; renderApp()" class="text-purple-600 font-semibold hover:underline">
+                    Daftar
+                  </button>
+                </p>
+              </div>
+            </div>
+          `;
         }
+        return;
+      }
 
-        function showSection(sectionId) {
-            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(sectionId).classList.remove('hidden');
-            if (currentUser && currentUser.role === 'guru') {
-                document.querySelectorAll('#add-guru-btn, #add-jadwal-btn, #add-pelajaran-btn, #add-siswa-btn, #add-kelas-btn').forEach(btn => btn.style.display = 'none');
-            }
-        }
+      let content = '';
+      switch (currentView) {
+        case 'dashboard':
+          content = renderDashboard();
+          break;
+        case 'data_sekolah':
+          content = renderDataSekolah();
+          break;
+        case 'data_guru':
+          content = renderDataGuru();
+          break;
+        case 'jadwal':
+          content = renderJadwalMengajar();
+          break;
+        case 'mapel':
+          content = renderMataPelajaran();
+          break;
+        case 'siswa':
+          content = renderDataSiswa();
+          break;
+        case 'kelas':
+          content = renderTambahKelas();
+          break;
+        case 'gaji':
+          content = renderGajiGuru();
+          break;
+        case 'rincian_gaji':
+          content = renderRincianGaji();
+          break;
+      }
 
-        function login() {
-            const email = document.getElementById('email').value;
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const user = data.users.find(u => u.email === email && u.username === username && u.password === password);
-            if (user) {
-                currentUser = user;
-                showSection('dashboard');
-                loadDashboard();
-            } else {
-                alert('Login gagal');
-            }
-        }
+      app.innerHTML = `
+        <div class="flex h-full w-full">
+          ${renderSidebar()}
+          <div class="flex-1 sidebar-transition ${sidebarOpen ? 'ml-0' : ''} overflow-auto">
+            <div class="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-10">
+              <button onclick="sidebarOpen = !sidebarOpen; renderApp()" 
+                      class="text-gray-700 hover:text-purple-600 text-2xl">
+                ${sidebarOpen ? '◀' : '☰'}
+              </button>
+              <div class="text-right">
+                <p class="font-semibold text-gray-800">${currentUser.username}</p>
+                <p class="text-sm text-gray-600">${currentUser.role === 'admin' ? 'Administrator' : 'Guru'}</p>
+              </div>
+            </div>
+            ${content}
+          </div>
+        </div>
+      `;
+    }
 
-        function register() {
-            const email = document.getElementById('email').value;
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const role = prompt('Role: admin atau guru');
-            data.users.push({ email, username, password, role });
-            saveData();
-            alert('Registrasi berhasil');
-        }
+    async function onConfigChange(config) {
+      document.documentElement.style.setProperty('--primary-color', config.primary_color || defaultConfig.primary_color);
+      renderApp();
+    }
 
-        function logout() {
-            currentUser = null;
-            showSection('login');
-        }
+    async function init() {
+      const initResult = await window.dataSdk.init(dataHandler);
+      if (!initResult.isOk) {
+        console.error('Failed to initialize data SDK');
+        return;
+      }
 
-        function saveSchoolData() {
-            data.school = {
-                name: document.getElementById('school-name').value,
-                address: document.getElementById('school-address').value
-            };
-            saveData();
-            loadDashboard();
-        }
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange,
+          mapToCapabilities: (config) => ({
+            recolorables: [
+              {
+                get: () => config.primary_color || defaultConfig.primary_color,
+                set: (value) => {
+                  window.elementSdk.config.primary_color = value;
+                  window.elementSdk.setConfig({ primary_color: value });
+                }
+              }
+            ],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ["app_title", config.app_title || defaultConfig.app_title],
+            ["welcome_message", config.welcome_message || defaultConfig.welcome_message]
+          ])
+        });
+      }
 
-        function loadDashboard() {
-            const display = document.getElementById('school-data-display');
-            display.innerHTML = `<p>Nama Sekolah: ${data.school.name || 'Belum diisi'}</p><p>Alamat: ${data.school.address || 'Belum diisi'}</p>`;
-        }
+      renderApp();
+    }
 
-        function addGuru() {
-            if (currentUser.role !== 'admin') return;
-            const name = prompt('Nama Guru');
-            const email = prompt('Email');
-            data.gurus.push({ name, email, role: 'guru' });
-            saveData();
-            loadGurus();
-        }
-
-        function loadGurus() {
-            const table = document.getElementById('guru-table');
-            table.innerHTML = '<tr><th>Nama</th><th>Email</th><th>Role</th></tr>';
-            data.gurus.forEach(g => {
-                table.innerHTML += `<tr><td>${g.name}</td><td>${g.email}</td><td>${g.role}</td></tr>`;
-            });
-        }
-
-        // Fungsi serupa untuk jadwal, pelajaran, siswa, kelas (add dan load)
-
-        function calculateSalary() {
-            const guru = document.getElementById('guru-select').value;
-            const daily = parseFloat(document.getElementById('daily-salary').value);
-            const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-            const monthly = daily * daysInMonth;
-            const summary = document.getElementById('salary-summary');
-            summary.innerHTML = `
-                <p>Gaji Per Hari: ${daily}</p>
-                <p>Gaji Per Bulan: ${monthly}</p>
-                <p>Gaji Per 3 Bulan: ${monthly * 3}</p>
-                <p>Gaji Per 6 Bulan: ${monthly * 6}</p>
-                <p>Guru Pengganti Full: ${data.salaries[guru]?.substitutes?.full || 0}</p>
-                <p>Guru Pengganti Selingan: ${data.salaries[guru]?.substitutes?.selingan || 0}</p>
-                <p>Potongan: ${data.salaries[guru]?.deductions || 0}</p>
-                <p>Total Pendapatan: ${monthly + (data.salaries[guru]?.substitutes?.full || 0) + (data.salaries[guru]?.substitutes?.selingan || 0) - (data.salaries[guru]?.deductions || 0)}</p>
-            `;
-        }
-
-        function addSubstitute() {
-            const date = document.getElementById('substitute-date').value;
-            const type = document.getElementById('substitute-type').value;
-            const amount = parseFloat(document.getElementById('substitute-amount').value);
-            const guru = document.getElementById('guru-select').value;
-            if (!data.salaries[guru]) data.salaries[guru] = { substitutes: { full: 0, selingan: 0 }, deductions: 0 };
-            data.salaries[guru].substitutes[type] += amount;
-            saveData();
-        }
-
-        function addDeduction() {
-            const date = document.getElementById('deduction-date').value;
-            const reason = document.getElementById('deduction-reason').value;
-            const amount = parseFloat(document.getElementById('deduction-amount').value);
-            const replacement = document.getElementById('replacement-teacher').value;
-            const type = document.getElementById('replacement-type').value;
-            const replacementSalary = parseFloat(document.getElementById('replacement-salary').value);
-            const guru = document.getElementById('guru-select').value;
-            if (!data.salaries[guru]) data.salaries[guru] = { substitutes: { full: 0, selingan: 0 }, deductions: 0 };
-            data.salaries[guru].deductions += amount;
-            // Tambahkan logika untuk guru pengganti jika diperlukan
-            saveData();
-        }
-
-        function printPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.text(document.getElementById('salary-summary').innerText, 10, 10);
-            doc.save('gaji-guru.pdf');
-        }
-
-        function backupData() {
-            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'backup-school-data.json';
-            a.click();
-        }
-
-        function restoreData() {
-            const file = document.getElementById('restore-file').files[0];
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                data = JSON.parse(e.target.result);
-                saveData();
-                alert('Data berhasil direstore');
-            };
-            reader.readAsText(file);
-        }
-
-        function saveData() {
-            localStorage.setItem('schoolData', JSON.stringify(data));
-            // Placeholder untuk backup ke Google Drive: gunakan gapi untuk upload file
-            // Contoh: gapi.client.drive.files.create({ resource: { name: 'backup.json' }, media: { body: JSON.stringify(data) } });
-        }
-
-        // Load initial data
-        loadGurus();
-        // Load lainnya serupa
-    </script>
-</body>
+    init();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c61820807b5514a',t:'MTc2OTc4MTc1Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
