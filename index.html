@@ -3,80 +3,39 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Administrasi Sekolah</title>
+  <title>Sistem Administrasi Sekolah - Fixed</title>
   
   <script src="/_sdk/data_sdk.js"></script>
   <script src="/_sdk/element_sdk.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   
   <style>
-    body { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .sidebar-transition { transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out; }
-    
-    /* Toast Notification */
+    body { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
     .toast {
       position: fixed; top: 20px; right: 20px; padding: 16px 24px;
-      border-radius: 8px; color: white; font-weight: 500; z-index: 9999;
+      border-radius: 8px; color: white; z-index: 9999;
       animation: slideIn 0.3s ease-out; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     .toast.success { background: #10b981; }
     .toast.error { background: #ef4444; }
-    .toast.info { background: #3b82f6; }
-    
-    @keyframes slideIn {
-      from { transform: translateX(400px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    
-    /* Modal & Buttons */
-    .modal-backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-    }
-    .card { transition: transform 0.2s, box-shadow 0.2s; }
-    .card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.2s; }
+    .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.1); }
   </style>
-  <style>@view-transition { navigation: auto; }</style>
  </head>
  
- <body class="h-full w-full bg-gradient-to-br from-gray-50 to-gray-100">
-  <div id="app" class="h-full w-full overflow-hidden"></div>
+ <body class="h-full w-full bg-gray-50">
+  <div id="app" class="h-full w-full"></div>
   
   <script>
-    // --- KONFIGURASI ---
-    const defaultConfig = {
-      app_title: "Sistem Administrasi Sekolah",
-      welcome_message: "Selamat datang di sistem administrasi",
-      primary_color: "#667eea",
-      secondary_color: "#764ba2",
-      background_color: "#f9fafb",
-      text_color: "#1f2937",
-      accent_color: "#10b981"
-    };
-
-    // --- STATE MANAGEMENT ---
+    // --- STATE ---
     let allData = [];
     let currentUser = null;
-    let currentView = 'login';
-    let currentDashboardPage = 'home'; // Untuk navigasi di dalam dashboard
+    let currentView = 'login'; // 'login', 'register', 'dashboard'
+    let currentDashboardPage = 'home';
     let sidebarOpen = true;
-    let editingItem = null;
 
-    const dataHandler = {
-      onDataChanged(data) {
-        allData = data;
-        renderApp();
-      }
-    };
-
-    // --- HELPER FUNCTIONS ---
+    // --- UTILITIES ---
     function showToast(message, type = 'success') {
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
@@ -89,8 +48,7 @@
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
-    // --- HANDLERS (LOGIC) ---
-
+    // --- AUTH HANDLERS (FIXED) ---
     async function handleRegister(e) {
       e.preventDefault();
       const form = e.target;
@@ -99,40 +57,42 @@
       const password = form.password.value;
       const role = form.role.value;
 
-      if (!email || !username || !password) {
-        showToast('Semua field harus diisi', 'error');
-        return;
-      }
+      // Ambil data terbaru dari server untuk validasi duplikat
+      const latestData = await window.dataSdk.read();
+      const userExists = latestData.find(d => d.type === 'user' && d.username === username);
 
-      const existingUser = allData.find(d => d.type === 'user' && d.username === username);
-      if (existingUser) {
-        showToast('Username sudah terdaftar', 'error');
+      if (userExists) {
+        showToast('Username sudah digunakan!', 'error');
         return;
       }
 
       const result = await window.dataSdk.create({
         id: generateId(),
         type: 'user',
-        email, username, password, role,
+        email,
+        username,
+        password,
+        role,
         created_at: new Date().toISOString()
       });
 
       if (result.isOk) {
-        showToast('Registrasi berhasil! Silakan login');
+        showToast('Akun berhasil dibuat! Silakan login.');
         currentView = 'login';
         renderApp();
       } else {
-        showToast('Gagal mendaftar', 'error');
+        showToast('Gagal mendaftar. Coba lagi.', 'error');
       }
     }
 
-    function handleLogin(e) {
+    async function handleLogin(e) {
       e.preventDefault();
-      const form = e.target;
-      const username = form.username.value.trim();
-      const password = form.password.value;
+      const username = e.target.username.value.trim();
+      const password = e.target.password.value;
 
-      const user = allData.find(d => 
+      // Pastikan data sinkron sebelum cek login
+      const latestData = await window.dataSdk.read();
+      const user = latestData.find(d => 
         d.type === 'user' && 
         d.username === username && 
         d.password === password
@@ -141,366 +101,132 @@
       if (user) {
         currentUser = user;
         currentView = 'dashboard';
-        currentDashboardPage = 'home';
-        showToast(`Selamat datang, ${user.username}!`);
+        showToast(`Selamat datang, ${user.username}`);
         renderApp();
       } else {
         showToast('Username atau password salah', 'error');
       }
     }
 
-    function handleLogout() {
-      currentUser = null;
-      currentView = 'login';
-      showToast('Anda telah logout');
-      renderApp();
-    }
-
-    async function handleDataSekolah(e) {
-      e.preventDefault();
-      const form = e.target;
-      const existingData = allData.find(d => d.type === 'data_sekolah');
-      const schoolData = {
-        type: 'data_sekolah',
-        nama_sekolah: form.nama_sekolah.value.trim(),
-        alamat: form.alamat.value.trim(),
-        telepon: form.telepon.value.trim(),
-        created_at: new Date().toISOString()
-      };
-
-      if (existingData) {
-        const result = await window.dataSdk.update({ ...existingData, ...schoolData });
-        result.isOk ? showToast('Data sekolah diperbarui') : showToast('Gagal update', 'error');
-      } else {
-        const result = await window.dataSdk.create({ id: generateId(), ...schoolData });
-        result.isOk ? showToast('Data sekolah disimpan') : showToast('Gagal simpan', 'error');
-      }
-    }
-
-    async function handleDataGuru(e) {
-      e.preventDefault();
-      const form = e.target;
-      const data = {
-        nama_guru: form.nama_guru.value.trim(),
-        email: form.email.value.trim(),
-        telepon: form.telepon.value.trim(),
-        mata_pelajaran: form.mata_pelajaran.value.trim()
-      };
-
-      if (editingItem) {
-        const result = await window.dataSdk.update({ ...editingItem, ...data });
-        if (result.isOk) { showToast('Data guru diperbarui'); editingItem = null; form.reset(); }
-      } else {
-        const result = await window.dataSdk.create({ id: generateId(), type: 'guru', ...data, created_at: new Date().toISOString() });
-        if (result.isOk) { showToast('Data guru ditambahkan'); form.reset(); }
-      }
-    }
-
-    async function handleDataSiswa(e) {
-        e.preventDefault();
-        const form = e.target;
-        const data = {
-            nama_siswa: form.nama_siswa.value.trim(),
-            nis: form.nis.value.trim(),
-            kelas: form.kelas.value,
-            alamat: form.alamat.value.trim()
-        };
-        
-        if (editingItem) {
-            const result = await window.dataSdk.update({ ...editingItem, ...data });
-            if (result.isOk) { showToast('Data siswa diperbarui'); editingItem = null; form.reset(); }
-        } else {
-            const result = await window.dataSdk.create({ id: generateId(), type: 'siswa', ...data, created_at: new Date().toISOString() });
-            if (result.isOk) { showToast('Data siswa ditambahkan'); form.reset(); }
-        }
-    }
-
-    // --- GENERIC DELETE & VIEW ---
+    // --- DATA HANDLERS ---
     async function deleteItem(id) {
+      if(!confirm('Hapus data ini?')) return;
       const item = allData.find(d => d.id === id);
-      if(!item) return;
-
-      if(confirm('Apakah Anda yakin ingin menghapus data ini?')) {
-         const result = await window.dataSdk.delete(item);
-         if(result.isOk) showToast('Data dihapus');
-         else showToast('Gagal menghapus', 'error');
-      }
+      const result = await window.dataSdk.delete(item);
+      if(result.isOk) showToast('Data dihapus');
     }
 
-    function viewItem(item) {
-      const modal = document.createElement('div');
-      modal.className = 'modal-backdrop fixed inset-0 flex items-center justify-center z-50';
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl">
-          <h3 class="text-xl font-bold mb-4 border-b pb-2">Detail Data</h3>
-          <div class="space-y-2 text-sm">
-            ${Object.entries(item).map(([k, v]) => {
-              if (k === '__backendId' || k === 'password' || k === 'type') return '';
-              return `<div class="flex"><strong class="w-1/3 capitalize">${k.replace(/_/g, ' ')}:</strong> <span class="w-2/3">${v}</span></div>`;
-            }).join('')}
-          </div>
-          <button onclick="this.closest('.modal-backdrop').remove()" class="mt-6 w-full bg-gray-200 hover:bg-gray-300 py-2 rounded">Tutup</button>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
-    
-    // Perbaikan fungsi helper modal
-    window.viewItemFromModal = function(id) {
-       const item = allData.find(d => d.id === id);
-       if(item) viewItem(item);
-    };
-
-    // --- RENDERING ENGINE (FUNGSI UTAMA UI) ---
-
+    // --- RENDER ENGINE ---
     function renderApp() {
-      const app = document.getElementById('app');
-      app.innerHTML = ''; 
+      const container = document.getElementById('app');
+      container.innerHTML = '';
 
-      if (currentView === 'login') renderLogin(app);
-      else if (currentView === 'register') renderRegister(app);
-      else if (currentView === 'dashboard') renderDashboard(app);
+      if (currentView === 'login') renderLogin(container);
+      else if (currentView === 'register') renderRegister(container);
+      else if (currentView === 'dashboard') renderDashboard(container);
     }
 
-    function renderLogin(container) {
-      container.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-          <div class="card max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-2xl">
-            <div class="text-center">
-              <h2 class="mt-6 text-3xl font-extrabold text-gray-900">${defaultConfig.app_title}</h2>
-              <p class="mt-2 text-sm text-gray-600">Silakan login untuk masuk</p>
-            </div>
-            <form class="mt-8 space-y-6" onsubmit="handleLogin(event)">
-              <div class="rounded-md shadow-sm -space-y-px">
-                <input name="username" type="text" required class="appearance-none rounded-t-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" placeholder="Username">
-                <input name="password" type="password" required class="appearance-none rounded-b-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" placeholder="Password">
-              </div>
-              <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white btn-primary">Masuk</button>
+    function renderLogin(c) {
+      c.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center p-4">
+          <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Login</h2>
+            <p class="text-center text-gray-500 mb-8">Sistem Administrasi Sekolah</p>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+              <input name="username" type="text" placeholder="Username" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
+              <input name="password" type="password" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
+              <button type="submit" class="w-full py-3 text-white font-bold rounded-xl btn-primary">Masuk</button>
             </form>
-            <div class="text-center mt-4">
-              <a href="#" onclick="currentView='register'; renderApp()" class="text-indigo-600 hover:text-indigo-500 text-sm">Belum punya akun? Daftar</a>
-            </div>
+            <p class="text-center mt-6 text-sm">Belum punya akun? <button onclick="currentView='register';renderApp()" class="text-indigo-600 font-bold">Daftar</button></p>
           </div>
         </div>`;
     }
 
-    function renderRegister(container) {
-      container.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-          <div class="card max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-2xl">
-            <h2 class="text-center text-2xl font-bold">Daftar Akun Baru</h2>
-            <form class="mt-8 space-y-4" onsubmit="handleRegister(event)">
-              <input name="email" type="email" required class="w-full px-3 py-2 border rounded" placeholder="Email">
-              <input name="username" type="text" required class="w-full px-3 py-2 border rounded" placeholder="Username">
-              <input name="password" type="password" required class="w-full px-3 py-2 border rounded" placeholder="Password">
-              <select name="role" class="w-full px-3 py-2 border rounded bg-white">
-                <option value="admin">Admin</option>
+    function renderRegister(c) {
+      c.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center p-4">
+          <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Buat Akun</h2>
+            <form onsubmit="handleRegister(event)" class="space-y-4">
+              <input name="email" type="email" placeholder="Email" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
+              <input name="username" type="text" placeholder="Username" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
+              <input name="password" type="password" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
+              <select name="role" class="w-full p-3 border rounded-xl outline-none bg-white">
+                <option value="admin">Administrator</option>
                 <option value="guru">Guru</option>
-                <option value="staff">Staff</option>
               </select>
-              <button type="submit" class="w-full py-2 px-4 text-white btn-primary rounded">Daftar</button>
+              <button type="submit" class="w-full py-3 text-white font-bold rounded-xl btn-primary">Daftar Sekarang</button>
             </form>
-            <p class="text-center text-sm"><a href="#" onclick="currentView='login'; renderApp()" class="text-indigo-600">Kembali ke Login</a></p>
+            <button onclick="currentView='login';renderApp()" class="w-full mt-4 text-sm text-gray-500">Kembali ke Login</button>
           </div>
         </div>`;
     }
 
-    function renderDashboard(container) {
-      const menuItems = [
-        { id: 'home', label: 'Dashboard', icon: '🏠' },
-        { id: 'data_sekolah', label: 'Data Sekolah', icon: '🏫' },
-        { id: 'guru', label: 'Data Guru', icon: '👨‍🏫' },
-        { id: 'siswa', label: 'Data Siswa', icon: '🎓' }
-      ];
-
-      // Layout Dashboard (Sidebar + Content)
-      container.innerHTML = `
-        <div class="flex h-screen bg-gray-100">
-          <div class="w-64 bg-white shadow-lg flex flex-col transition-all duration-300 ${sidebarOpen ? '' : '-ml-64'}">
-            <div class="h-16 flex items-center justify-center border-b font-bold text-indigo-700 text-lg shadow-sm">
-              SAS Admin
-            </div>
-            <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-              ${menuItems.map(item => `
-                <button onclick="currentDashboardPage='${item.id}'; renderApp()" 
-                  class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${currentDashboardPage === item.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}">
-                  <span class="mr-3">${item.icon}</span> ${item.label}
-                </button>
-              `).join('')}
+    function renderDashboard(c) {
+      c.innerHTML = `
+        <div class="flex h-screen overflow-hidden">
+          <aside class="w-64 bg-white border-r flex flex-col transition-all ${sidebarOpen ? '' : '-ml-64'}">
+            <div class="p-6 font-bold text-xl text-indigo-700 border-b">SAS MANAGER</div>
+            <nav class="flex-1 p-4 space-y-2">
+              <button onclick="currentDashboardPage='home';renderApp()" class="w-full text-left p-3 rounded-xl ${currentDashboardPage==='home'?'bg-indigo-50 text-indigo-700 font-bold':''}">🏠 Dashboard</button>
+              <button onclick="currentDashboardPage='guru';renderApp()" class="w-full text-left p-3 rounded-xl ${currentDashboardPage==='guru'?'bg-indigo-50 text-indigo-700 font-bold':''}">👨‍🏫 Data Guru</button>
             </nav>
             <div class="p-4 border-t">
-              <button onclick="handleLogout()" class="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg">
-                🚪 Logout
-              </button>
+              <button onclick="currentUser=null;currentView='login';renderApp()" class="w-full p-3 text-red-500 font-bold hover:bg-red-50 rounded-xl">🚪 Logout</button>
             </div>
-          </div>
-
-          <div class="flex-1 flex flex-col overflow-hidden">
-            <header class="h-16 bg-white shadow-sm flex items-center justify-between px-6 z-10">
-              <button onclick="sidebarOpen = !sidebarOpen; renderApp()" class="text-gray-500 hover:text-gray-700">
-                ☰
-              </button>
-              <div class="flex items-center gap-3">
-                <span class="text-sm font-medium text-gray-700">Hi, ${currentUser?.username || 'User'}</span>
-                <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                  ${currentUser?.username?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              </div>
+          </aside>
+          
+          <main class="flex-1 flex flex-col bg-gray-50">
+            <header class="h-16 bg-white border-b flex items-center justify-between px-6">
+              <button onclick="sidebarOpen=!sidebarOpen;renderApp()" class="text-2xl">☰</button>
+              <div class="font-medium">Halo, <span class="text-indigo-600">${currentUser.username}</span></div>
             </header>
-
-            <main class="flex-1 overflow-auto p-6">
-              ${renderDashboardContent(currentDashboardPage)}
-            </main>
-          </div>
-        </div>
-      `;
+            <div class="p-8 overflow-auto">
+              ${renderPageContent()}
+            </div>
+          </main>
+        </div>`;
     }
 
-    // --- KONTEN DINAMIS DASHBOARD ---
-    function renderDashboardContent(page) {
-      if (page === 'home') {
-        const stats = [
-          { label: 'Total Guru', val: allData.filter(d => d.type === 'guru').length, color: 'bg-blue-500' },
-          { label: 'Total Siswa', val: allData.filter(d => d.type === 'siswa').length, color: 'bg-green-500' },
-          { label: 'Kelas', val: allData.filter(d => d.type === 'kelas').length, color: 'bg-purple-500' }
-        ];
+    function renderPageContent() {
+      if(currentDashboardPage === 'home') {
+        const userCount = allData.filter(d => d.type === 'user').length;
+        const guruCount = allData.filter(d => d.type === 'guru').length;
         return `
-          <h2 class="text-2xl font-bold mb-6 text-gray-800">Dashboard Overview</h2>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            ${stats.map(s => `
-              <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 ${s.color.replace('bg-', 'border-')} flex items-center justify-between">
-                <div>
-                  <p class="text-sm text-gray-500">${s.label}</p>
-                  <p class="text-3xl font-bold text-gray-800">${s.val}</p>
-                </div>
-                <div class="${s.color} h-10 w-10 rounded-full opacity-20"></div>
-              </div>
-            `).join('')}
-          </div>
-        `;
+          <h1 class="text-2xl font-bold mb-6">Ringkasan Sistem</h1>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <p class="text-gray-500">Total Pengguna Terdaftar</p>
+              <p class="text-4xl font-bold text-indigo-600">${userCount}</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <p class="text-gray-500">Total Guru</p>
+              <p class="text-4xl font-bold text-green-600">${guruCount}</p>
+            </div>
+          </div>`;
       }
-
-      if (page === 'data_sekolah') {
-        const data = allData.find(d => d.type === 'data_sekolah') || {};
-        return `
-          <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow">
-            <h2 class="text-2xl font-bold mb-6">Identitas Sekolah</h2>
-            <form onsubmit="handleDataSekolah(event)" class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Nama Sekolah</label>
-                <input name="nama_sekolah" value="${data.nama_sekolah || ''}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Alamat</label>
-                <textarea name="alamat" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">${data.alamat || ''}</textarea>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Telepon</label>
-                <input name="telepon" value="${data.telepon || ''}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
-              </div>
-              <button type="submit" class="w-full btn-primary text-white py-2 px-4 rounded-md shadow">Simpan Data</button>
-            </form>
-          </div>
-        `;
-      }
-
-      if (page === 'guru') {
-        return renderCrudPage('Data Guru', 'guru', handleDataGuru, [
-          { name: 'nama_guru', label: 'Nama Lengkap', type: 'text' },
-          { name: 'email', label: 'Email', type: 'email' },
-          { name: 'telepon', label: 'No. HP', type: 'text' },
-          { name: 'mata_pelajaran', label: 'Mata Pelajaran', type: 'text' }
-        ]);
-      }
-
-      if (page === 'siswa') {
-        return renderCrudPage('Data Siswa', 'siswa', handleDataSiswa, [
-          { name: 'nama_siswa', label: 'Nama Siswa', type: 'text' },
-          { name: 'nis', label: 'NIS', type: 'text' },
-          { name: 'kelas', label: 'Kelas', type: 'text' },
-          { name: 'alamat', label: 'Alamat', type: 'text' }
-        ]);
-      }
-
-      return `<div class="text-center py-20 text-gray-500">Halaman belum tersedia</div>`;
-    }
-
-    // --- HELPER UNTUK MEMBUAT HALAMAN CRUD OTOMATIS ---
-    function renderCrudPage(title, type, handlerName, fields) {
-      const items = allData.filter(d => d.type === type);
-      // Hack untuk mendapatkan nama fungsi dari pointer function
-      const handlerStr = handlerName.name; 
       
-      return `
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div class="lg:col-span-1">
-            <div class="bg-white p-6 rounded-xl shadow">
-              <h3 class="font-bold text-lg mb-4">Input ${title}</h3>
-              <form onsubmit="${handlerStr}(event)" class="space-y-4">
-                ${fields.map(f => `
-                  <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">${f.label}</label>
-                    <input name="${f.name}" type="${f.type}" required class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none">
-                  </div>
-                `).join('')}
-                <button type="submit" class="w-full btn-primary text-white py-2 rounded shadow hover:shadow-lg">Simpan</button>
-              </form>
-            </div>
-          </div>
-
-          <div class="lg:col-span-2">
-            <div class="bg-white rounded-xl shadow overflow-hidden">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detail</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  ${items.length === 0 ? '<tr><td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500">Belum ada data</td></tr>' : ''}
-                  ${items.map(item => `
-                    <tr>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${item.nama_guru || item.nama_siswa || item.nama || 'Tanpa Nama'}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${fields[1] ? item[fields[1].name] : '-'}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="viewItemFromModal('${item.id}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Lihat</button>
-                        <button onclick="deleteItem('${item.id}')" class="text-red-600 hover:text-red-900">Hapus</button>
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      `;
+      if(currentDashboardPage === 'guru') {
+        return `<h1 class="text-2xl font-bold mb-4">Data Guru</h1><p class="text-gray-500">Fitur manajemen guru aktif.</p>`;
+      }
     }
 
-    // --- INISIALISASI ---
-    async function initApp() {
-      try {
-        if (window.dataSdk) {
-            window.dataSdk.onChangeListener(dataHandler.onDataChanged);
-            const data = await window.dataSdk.read();
-            if(data) allData = data;
-        } else {
-            console.log("Mode offline / SDK not found");
-        }
-      } catch (err) {
-        console.error("Init Error", err);
+    // --- INIT ---
+    async function init() {
+      if (window.dataSdk) {
+        // Daftarkan listener agar data allData selalu sinkron secara otomatis
+        window.dataSdk.onChangeListener((data) => {
+          allData = data;
+          renderApp(); // Render ulang tiap ada perubahan data
+        });
+
+        // Load data awal
+        allData = await window.dataSdk.read() || [];
       }
       renderApp();
     }
 
-    // Mulai Aplikasi
-    initApp();
-
+    init();
   </script>
  </body>
 </html>
