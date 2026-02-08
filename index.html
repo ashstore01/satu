@@ -3,120 +3,142 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Administrasi Sekolah - Fixed</title>
+  <title>Sistem Administrasi Sekolah - Stabil</title>
   
   <script src="/_sdk/data_sdk.js"></script>
   <script src="/_sdk/element_sdk.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   
   <style>
-    body { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
     .toast {
       position: fixed; top: 20px; right: 20px; padding: 16px 24px;
-      border-radius: 8px; color: white; z-index: 9999;
-      animation: slideIn 0.3s ease-out; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 12px; color: white; z-index: 9999;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
     }
-    .toast.success { background: #10b981; }
-    .toast.error { background: #ef4444; }
-    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.2s; }
-    .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    .toast.success { background: #059669; }
+    .toast.error { background: #dc2626; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
   </style>
  </head>
  
- <body class="h-full w-full bg-gray-50">
+ <body class="h-full w-full bg-[#f8fafc]">
   <div id="app" class="h-full w-full"></div>
   
   <script>
-    // --- STATE ---
+    // --- GLOBAL STATE ---
     let allData = [];
     let currentUser = null;
-    let currentView = 'login'; // 'login', 'register', 'dashboard'
-    let currentDashboardPage = 'home';
+    let currentView = 'login'; 
     let sidebarOpen = true;
 
-    // --- UTILITIES ---
+    // --- SYSTEM UTILITIES ---
     function showToast(message, type = 'success') {
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
       toast.textContent = message;
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = '0.5s';
+        setTimeout(() => toast.remove(), 500);
+      }, 3000);
     }
 
     function generateId() {
-      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+      return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     }
 
-    // --- AUTH HANDLERS (FIXED) ---
+    // --- LOGIC PERBAIKAN DAFTAR AKUN (FIXED) ---
     async function handleRegister(e) {
       e.preventDefault();
       const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      
       const email = form.email.value.trim();
-      const username = form.username.value.trim();
+      const username = form.username.value.trim().toLowerCase();
       const password = form.password.value;
       const role = form.role.value;
 
-      // Ambil data terbaru dari server untuk validasi duplikat
-      const latestData = await window.dataSdk.read();
-      const userExists = latestData.find(d => d.type === 'user' && d.username === username);
-
-      if (userExists) {
-        showToast('Username sudah digunakan!', 'error');
+      // 1. Validasi Input Dasar
+      if (password.length < 6) {
+        showToast('Password minimal 6 karakter', 'error');
         return;
       }
 
-      const result = await window.dataSdk.create({
-        id: generateId(),
-        type: 'user',
-        email,
-        username,
-        password,
-        role,
-        created_at: new Date().toISOString()
-      });
+      try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Memproses...';
 
-      if (result.isOk) {
-        showToast('Akun berhasil dibuat! Silakan login.');
-        currentView = 'login';
-        renderApp();
-      } else {
-        showToast('Gagal mendaftar. Coba lagi.', 'error');
+        // 2. Cek Duplikat Langsung ke Database (Mencegah Bug Sinkronisasi)
+        const latestData = await window.dataSdk.read();
+        const isDuplicate = latestData.some(d => d.type === 'user' && d.username === username);
+
+        if (isDuplicate) {
+          showToast('Username sudah digunakan, pilih nama lain', 'error');
+          return;
+        }
+
+        // 3. Eksekusi Create Data
+        const newUser = {
+          id: generateId(),
+          type: 'user',
+          email,
+          username,
+          password,
+          role,
+          created_at: new Date().toISOString()
+        };
+
+        const result = await window.dataSdk.create(newUser);
+
+        if (result.isOk) {
+          showToast('Akun Berhasil Dibuat!');
+          // Delay sedikit agar user bisa membaca toast sebelum pindah
+          setTimeout(() => {
+            currentView = 'login';
+            renderApp();
+          }, 1000);
+        } else {
+          throw new Error('Gagal menyimpan ke database');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Daftar Sekarang';
       }
     }
 
     async function handleLogin(e) {
       e.preventDefault();
-      const username = e.target.username.value.trim();
+      const username = e.target.username.value.trim().toLowerCase();
       const password = e.target.password.value;
 
-      // Pastikan data sinkron sebelum cek login
-      const latestData = await window.dataSdk.read();
-      const user = latestData.find(d => 
-        d.type === 'user' && 
-        d.username === username && 
-        d.password === password
-      );
+      try {
+        const latestData = await window.dataSdk.read();
+        const user = latestData.find(d => 
+          d.type === 'user' && 
+          d.username === username && 
+          d.password === password
+        );
 
-      if (user) {
-        currentUser = user;
-        currentView = 'dashboard';
-        showToast(`Selamat datang, ${user.username}`);
-        renderApp();
-      } else {
-        showToast('Username atau password salah', 'error');
+        if (user) {
+          currentUser = user;
+          currentView = 'dashboard';
+          showToast(`Selamat datang kembali, ${user.username}`);
+          renderApp();
+        } else {
+          showToast('Username atau password salah', 'error');
+        }
+      } catch (err) {
+        showToast('Gagal login, cek koneksi', 'error');
       }
     }
 
-    // --- DATA HANDLERS ---
-    async function deleteItem(id) {
-      if(!confirm('Hapus data ini?')) return;
-      const item = allData.find(d => d.id === id);
-      const result = await window.dataSdk.delete(item);
-      if(result.isOk) showToast('Data dihapus');
-    }
-
-    // --- RENDER ENGINE ---
+    // --- RENDER VIEWS ---
     function renderApp() {
       const container = document.getElementById('app');
       container.innerHTML = '';
@@ -128,36 +150,53 @@
 
     function renderLogin(c) {
       c.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center p-4">
-          <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
-            <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Login</h2>
+        <div class="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-500 to-purple-600">
+          <div class="glass-card p-10 rounded-3xl shadow-2xl w-full max-w-md">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-2 text-center">Masuk</h2>
             <p class="text-center text-gray-500 mb-8">Sistem Administrasi Sekolah</p>
-            <form onsubmit="handleLogin(event)" class="space-y-4">
-              <input name="username" type="text" placeholder="Username" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
-              <input name="password" type="password" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
-              <button type="submit" class="w-full py-3 text-white font-bold rounded-xl btn-primary">Masuk</button>
+            <form onsubmit="handleLogin(event)" class="space-y-5">
+              <input name="username" type="text" placeholder="Username" required class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-200 transition-all">
+              <input name="password" type="password" placeholder="Password" required class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-200 transition-all">
+              <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 shadow-lg transition-all active:scale-95">Masuk ke Sistem</button>
             </form>
-            <p class="text-center mt-6 text-sm">Belum punya akun? <button onclick="currentView='register';renderApp()" class="text-indigo-600 font-bold">Daftar</button></p>
+            <div class="mt-8 text-center">
+              <span class="text-gray-500">Belum punya akses?</span>
+              <button onclick="currentView='register';renderApp()" class="ml-1 text-indigo-600 font-bold hover:underline">Daftar Akun</button>
+            </div>
           </div>
         </div>`;
     }
 
     function renderRegister(c) {
       c.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center p-4">
-          <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
-            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Buat Akun</h2>
+        <div class="min-h-screen flex items-center justify-center p-6 bg-gradient-to-tr from-emerald-500 to-teal-600">
+          <div class="glass-card p-10 rounded-3xl shadow-2xl w-full max-w-md">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-2 text-center">Registrasi</h2>
+            <p class="text-center text-gray-500 mb-8">Buat akun administrator baru</p>
             <form onsubmit="handleRegister(event)" class="space-y-4">
-              <input name="email" type="email" placeholder="Email" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
-              <input name="username" type="text" placeholder="Username" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
-              <input name="password" type="password" placeholder="Password" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400">
-              <select name="role" class="w-full p-3 border rounded-xl outline-none bg-white">
-                <option value="admin">Administrator</option>
-                <option value="guru">Guru</option>
-              </select>
-              <button type="submit" class="w-full py-3 text-white font-bold rounded-xl btn-primary">Daftar Sekarang</button>
+              <div class="space-y-1">
+                <label class="text-sm font-semibold text-gray-600 ml-1">Email</label>
+                <input name="email" type="email" placeholder="contoh@sekolah.com" required class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-200">
+              </div>
+              <div class="space-y-1">
+                <label class="text-sm font-semibold text-gray-600 ml-1">Username</label>
+                <input name="username" type="text" placeholder="username_anda" required class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-200">
+              </div>
+              <div class="space-y-1">
+                <label class="text-sm font-semibold text-gray-600 ml-1">Password</label>
+                <input name="password" type="password" placeholder="Minimal 6 karakter" required class="w-full p-4 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-200">
+              </div>
+              <div class="space-y-1">
+                <label class="text-sm font-semibold text-gray-600 ml-1">Level Akses</label>
+                <select name="role" class="w-full p-4 border border-gray-200 rounded-2xl outline-none bg-white focus:ring-4 focus:ring-emerald-200">
+                  <option value="admin">Administrator (Full Akses)</option>
+                  <option value="guru">Guru (Terbatas)</option>
+                  <option value="staff">Staff TU</option>
+                </select>
+              </div>
+              <button type="submit" class="w-full mt-4 py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 shadow-lg transition-all active:scale-95">Daftar Sekarang</button>
             </form>
-            <button onclick="currentView='login';renderApp()" class="w-full mt-4 text-sm text-gray-500">Kembali ke Login</button>
+            <button onclick="currentView='login';renderApp()" class="w-full mt-6 text-sm text-gray-500 hover:text-gray-700 font-medium">Sudah punya akun? Kembali ke Login</button>
           </div>
         </div>`;
     }
@@ -165,63 +204,58 @@
     function renderDashboard(c) {
       c.innerHTML = `
         <div class="flex h-screen overflow-hidden">
-          <aside class="w-64 bg-white border-r flex flex-col transition-all ${sidebarOpen ? '' : '-ml-64'}">
-            <div class="p-6 font-bold text-xl text-indigo-700 border-b">SAS MANAGER</div>
-            <nav class="flex-1 p-4 space-y-2">
-              <button onclick="currentDashboardPage='home';renderApp()" class="w-full text-left p-3 rounded-xl ${currentDashboardPage==='home'?'bg-indigo-50 text-indigo-700 font-bold':''}">🏠 Dashboard</button>
-              <button onclick="currentDashboardPage='guru';renderApp()" class="w-full text-left p-3 rounded-xl ${currentDashboardPage==='guru'?'bg-indigo-50 text-indigo-700 font-bold':''}">👨‍🏫 Data Guru</button>
+          <aside class="${sidebarOpen ? 'w-72' : 'w-0'} bg-white border-r flex flex-col transition-all duration-300 overflow-hidden">
+            <div class="p-8 font-black text-2xl text-indigo-600 tracking-tight">SCHOOL-SAS</div>
+            <nav class="flex-1 px-4 space-y-2">
+              <div class="p-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold">🏠 Dashboard Utama</div>
             </nav>
-            <div class="p-4 border-t">
-              <button onclick="currentUser=null;currentView='login';renderApp()" class="w-full p-3 text-red-500 font-bold hover:bg-red-50 rounded-xl">🚪 Logout</button>
+            <div class="p-6">
+              <button onclick="currentUser=null;currentView='login';renderApp()" class="w-full p-4 text-red-500 font-bold hover:bg-red-50 rounded-2xl transition-all">Keluar Sistem</button>
             </div>
           </aside>
           
-          <main class="flex-1 flex flex-col bg-gray-50">
-            <header class="h-16 bg-white border-b flex items-center justify-between px-6">
-              <button onclick="sidebarOpen=!sidebarOpen;renderApp()" class="text-2xl">☰</button>
-              <div class="font-medium">Halo, <span class="text-indigo-600">${currentUser.username}</span></div>
+          <main class="flex-1 bg-[#f8fafc] flex flex-col">
+            <header class="h-20 bg-white/80 backdrop-blur-md border-b flex items-center justify-between px-8">
+              <button onclick="sidebarOpen=!sidebarOpen;renderApp()" class="p-2 hover:bg-gray-100 rounded-xl transition-all">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+              </button>
+              <div class="flex items-center gap-4">
+                <div class="text-right">
+                  <p class="text-sm font-bold text-gray-800">${currentUser.username}</p>
+                  <p class="text-xs text-indigo-500 uppercase font-black">${currentUser.role}</p>
+                </div>
+                <div class="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-indigo-200 shadow-lg">
+                  ${currentUser.username[0].toUpperCase()}
+                </div>
+              </div>
             </header>
-            <div class="p-8 overflow-auto">
-              ${renderPageContent()}
+            <div class="p-10 overflow-auto">
+              <h1 class="text-3xl font-black text-gray-800 mb-8">Statistik Sekolah</h1>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                  <p class="text-gray-400 font-bold text-sm uppercase mb-1">Pengguna</p>
+                  <p class="text-4xl font-black text-gray-800">${allData.filter(d => d.type === 'user').length}</p>
+                </div>
+              </div>
             </div>
           </main>
         </div>`;
     }
 
-    function renderPageContent() {
-      if(currentDashboardPage === 'home') {
-        const userCount = allData.filter(d => d.type === 'user').length;
-        const guruCount = allData.filter(d => d.type === 'guru').length;
-        return `
-          <h1 class="text-2xl font-bold mb-6">Ringkasan Sistem</h1>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <p class="text-gray-500">Total Pengguna Terdaftar</p>
-              <p class="text-4xl font-bold text-indigo-600">${userCount}</p>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <p class="text-gray-500">Total Guru</p>
-              <p class="text-4xl font-bold text-green-600">${guruCount}</p>
-            </div>
-          </div>`;
-      }
-      
-      if(currentDashboardPage === 'guru') {
-        return `<h1 class="text-2xl font-bold mb-4">Data Guru</h1><p class="text-gray-500">Fitur manajemen guru aktif.</p>`;
-      }
-    }
-
-    // --- INIT ---
+    // --- INITIALIZATION ---
     async function init() {
       if (window.dataSdk) {
-        // Daftarkan listener agar data allData selalu sinkron secara otomatis
         window.dataSdk.onChangeListener((data) => {
           allData = data;
-          renderApp(); // Render ulang tiap ada perubahan data
+          // Hanya render ulang jika sedang di dashboard untuk menghindari form ter-reset saat sedang mengetik
+          if (currentView === 'dashboard') renderApp();
         });
 
-        // Load data awal
-        allData = await window.dataSdk.read() || [];
+        try {
+          allData = await window.dataSdk.read() || [];
+        } catch(e) {
+          console.error("Gagal memuat data awal");
+        }
       }
       renderApp();
     }
