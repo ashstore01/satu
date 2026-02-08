@@ -1,318 +1,320 @@
 <!doctype html>
 <html lang="id" class="h-full">
- <head>
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Administrasi Sekolah - Hosting Storage Fixed</title>
+  <title>Sistem Administrasi Sekolah - Pro</title>
   
   <script src="/_sdk/data_sdk.js"></script>
   <script src="/_sdk/element_sdk.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   
   <style>
-    body { font-family: 'Segoe UI', system-ui, sans-serif; }
-    .toast {
-      position: fixed; top: 20px; right: 20px; padding: 16px 24px;
-      border-radius: 12px; color: white; z-index: 9999;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
-      animation: slideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-    }
-    .toast.success { background: #059669; }
-    .toast.error { background: #dc2626; }
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .sidebar-transition { transition: all 0.3s ease; }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.2s; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+    .toast { position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 8px; color: white; z-index: 9999; animation: slideIn 0.3s ease-out; }
+    .toast.success { background: #10b981; }
+    .toast.error { background: #ef4444; }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid #e2e8f0; }
+    .modal-backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
   </style>
- </head>
- 
- <body class="h-full w-full bg-[#f1f5f9]">
+</head>
+
+<body class="h-full w-full bg-gray-50">
   <div id="app" class="h-full w-full"></div>
-  
+
   <script>
-    // --- GLOBAL STATE ---
+    // --- STATE MANAGEMENT ---
     let allData = [];
     let currentUser = null;
-    let currentView = 'login'; 
-    let currentDashboardPage = 'home';
+    let currentView = 'login'; // login, register, dashboard
+    let currentTab = 'beranda';
     let sidebarOpen = true;
+    let editingItem = null;
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allData = data || [];
+        renderApp();
+      }
+    };
 
     // --- UTILITIES ---
-    function showToast(message, type = 'success') {
+    function showToast(msg, type = 'success') {
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
-      toast.textContent = message;
+      toast.textContent = msg;
       document.body.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = '0.5s';
-        setTimeout(() => toast.remove(), 500);
-      }, 3000);
+      setTimeout(() => toast.remove(), 3000);
     }
 
-    // --- REGESTRASI & LOGIN LOGIC (IMPROVED) ---
+    function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+
+    // --- LOGIC FUNCTIONS ---
     async function handleRegister(e) {
       e.preventDefault();
-      if (!window.dataSdk) return showToast('Database tidak terhubung', 'error');
-
       const form = e.target;
-      const submitBtn = form.querySelector('button[type="submit"]');
+      const username = form.username.value.trim();
       
-      const email = form.email.value.trim();
-      const username = form.username.value.trim().toLowerCase();
-      const password = form.password.value;
-      const role = form.role.value;
+      if (allData.find(d => d.type === 'user' && d.username === username)) {
+        return showToast('Username sudah terdaftar', 'error');
+      }
 
-      try {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Menyimpan ke Hosting...';
+      const res = await window.dataSdk.create({
+        id: generateId(),
+        type: 'user',
+        email: form.email.value,
+        username,
+        password: form.password.value,
+        role: form.role.value,
+        created_at: new Date().toISOString()
+      });
 
-        // 1. Ambil data terbaru langsung dari server (Mencegah bug duplikasi)
-        const latestData = await window.dataSdk.read() || [];
-        const isDuplicate = latestData.some(d => d.type === 'user' && d.username === username);
-
-        if (isDuplicate) {
-          showToast('Username sudah terdaftar!', 'error');
-          return;
-        }
-
-        // 2. Buat Objek Baru
-        const newUser = {
-          id: "user_" + Date.now(),
-          type: 'user',
-          email,
-          username,
-          password,
-          role,
-          created_at: new Date().toISOString()
-        };
-
-        // 3. Simpan ke Hosting
-        const result = await window.dataSdk.create(newUser);
-
-        if (result.isOk) {
-          showToast('Akun Berhasil Disimpan!');
-          // Refresh data lokal
-          allData = await window.dataSdk.read();
-          setTimeout(() => { currentView = 'login'; renderApp(); }, 1000);
-        } else {
-          showToast('Gagal menyimpan ke hosting', 'error');
-        }
-      } catch (err) {
-        showToast('Kesalahan Database: ' + err.message, 'error');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Daftar Sekarang';
+      if (res.isOk) {
+        showToast('Registrasi Berhasil!');
+        currentView = 'login';
+        renderApp();
       }
     }
 
-    async function handleLogin(e) {
+    function handleLogin(e) {
       e.preventDefault();
-      const username = e.target.username.value.trim().toLowerCase();
-      const password = e.target.password.value;
-
-      // Pastikan data paling baru
-      const latestData = await window.dataSdk.read() || [];
-      const user = latestData.find(d => d.type === 'user' && d.username === username && d.password === password);
-
+      const user = allData.find(d => d.type === 'user' && d.username === e.target.username.value && d.password === e.target.password.value);
       if (user) {
         currentUser = user;
         currentView = 'dashboard';
-        showToast('Login berhasil sebagai ' + user.role);
+        showToast(`Selamat datang, ${user.username}`);
         renderApp();
       } else {
-        showToast('Username atau Password salah', 'error');
+        showToast('Login Gagal!', 'error');
       }
     }
 
-    // --- KHUSUS ADMIN: HAPUS AKUN ---
-    async function deleteAccount(userId) {
-      if (!confirm('Hapus akun ini dari hosting secara permanen?')) return;
+    async function saveForm(e, type, fields) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = { type, id: editingItem ? editingItem.id : generateId() };
+      fields.forEach(f => formData[f] = form[f].value);
+
+      const res = editingItem ? await window.dataSdk.update({ ...editingItem, ...formData }) : await window.dataSdk.create(formData);
       
-      const accountToDelete = allData.find(d => d.id === userId);
-      if (!accountToDelete) return;
-
-      if (accountToDelete.id === currentUser.id) {
-        showToast('Anda tidak bisa menghapus akun Anda sendiri!', 'error');
-        return;
-      }
-
-      const result = await window.dataSdk.delete(accountToDelete);
-      if (result.isOk) {
-        showToast('Akun berhasil dihapus dari hosting');
-        // onChangeListener akan otomatis merender ulang data
-      } else {
-        showToast('Gagal menghapus akun', 'error');
+      if (res.isOk) {
+        showToast('Data berhasil disimpan');
+        editingItem = null;
+        form.reset();
+        renderApp();
       }
     }
 
-    // --- RENDER VIEWS ---
+    // --- EXPORT PDF ---
+    function exportToPDF(type, title, headers, dataKeys) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const filteredData = allData.filter(d => d.type === type);
+      const rows = filteredData.map(item => dataKeys.map(key => item[key] || '-'));
+
+      doc.text(title, 14, 15);
+      doc.autoTable({ head: [headers], body: rows, startY: 20 });
+      doc.save(`${title}.pdf`);
+    }
+
+    // --- VIEWS RENDERING ---
     function renderApp() {
-      const container = document.getElementById('app');
-      container.innerHTML = '';
-
-      if (currentView === 'login') renderLogin(container);
-      else if (currentView === 'register') renderRegister(container);
-      else if (currentView === 'dashboard') renderDashboard(container);
+      const app = document.getElementById('app');
+      if (currentView === 'login') return renderLogin(app);
+      if (currentView === 'register') return renderRegister(app);
+      renderDashboard(app);
     }
 
-    function renderLogin(c) {
-      c.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center p-6 bg-slate-900">
-          <div class="glass-card p-10 rounded-3xl shadow-2xl w-full max-w-md">
-            <h2 class="text-3xl font-black text-slate-800 mb-2 text-center tracking-tight">MASUK</h2>
-            <p class="text-center text-slate-500 mb-8 text-sm font-medium">Sistem Ruang Penyimpanan Sekolah</p>
+    function renderLogin(container) {
+      container.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+          <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <h2 class="text-2xl font-bold text-center mb-6">Masuk ke Sistem</h2>
             <form onsubmit="handleLogin(event)" class="space-y-4">
-              <input name="username" type="text" placeholder="Username" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
-              <input name="password" type="password" placeholder="Password" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
-              <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:bg-indigo-700 transition-all active:scale-95">Masuk ke Sistem</button>
+              <input name="username" placeholder="Username" required class="w-full p-3 border rounded-lg">
+              <input name="password" type="password" placeholder="Password" required class="w-full p-3 border rounded-lg">
+              <button class="w-full p-3 btn-primary text-white rounded-lg font-bold">Login</button>
             </form>
-            <button onclick="currentView='register';renderApp()" class="w-full mt-6 text-sm text-slate-600 font-semibold italic hover:text-indigo-600">Belum punya akun? Registrasi di sini</button>
+            <p class="mt-4 text-center text-sm">Belum punya akun? <a href="#" onclick="currentView='register';renderApp()" class="text-indigo-600 font-bold">Daftar</a></p>
           </div>
         </div>`;
     }
 
-    function renderRegister(c) {
-      c.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center p-6 bg-slate-900">
-          <div class="glass-card p-10 rounded-3xl shadow-2xl w-full max-w-md">
-            <h2 class="text-3xl font-black text-slate-800 mb-6 text-center tracking-tight">REGISTRASI</h2>
+    function renderRegister(container) {
+      container.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+          <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <h2 class="text-2xl font-bold text-center mb-6">Registrasi Akun</h2>
             <form onsubmit="handleRegister(event)" class="space-y-4">
-              <input name="email" type="email" placeholder="Email Aktif" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500">
-              <input name="username" type="text" placeholder="Username Baru" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500">
-              <input name="password" type="password" placeholder="Password Baru" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500">
-              <select name="role" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700">
-                <option value="admin">Administrator (Penuh)</option>
-                <option value="guru">Guru (Terbatas)</option>
-                <option value="staff">Staff TU</option>
+              <input name="email" type="email" placeholder="Email" required class="w-full p-3 border rounded-lg">
+              <input name="username" placeholder="Username" required class="w-full p-3 border rounded-lg">
+              <input name="password" type="password" placeholder="Password" required class="w-full p-3 border rounded-lg">
+              <select name="role" class="w-full p-3 border rounded-lg">
+                <option value="admin">Admin</option>
+                <option value="guru">Guru</option>
               </select>
-              <button type="submit" class="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl shadow-lg hover:bg-emerald-700 transition-all active:scale-95">Daftar & Simpan</button>
+              <button class="w-full p-3 btn-primary text-white rounded-lg font-bold">Daftar</button>
             </form>
-            <button onclick="currentView='login';renderApp()" class="w-full mt-6 text-sm text-slate-500 font-medium hover:underline">Batal & Kembali ke Login</button>
+            <p class="mt-4 text-center text-sm"><a href="#" onclick="currentView='login';renderApp()" class="text-indigo-600 font-bold">Kembali ke Login</a></p>
           </div>
         </div>`;
     }
 
-    function renderDashboard(c) {
-      c.innerHTML = `
+    function renderDashboard(container) {
+      container.innerHTML = `
         <div class="flex h-screen overflow-hidden">
-          <aside class="${sidebarOpen ? 'w-64' : 'w-0'} bg-slate-900 text-white transition-all duration-300 overflow-hidden flex flex-col">
-            <div class="p-6 font-black text-xl border-b border-slate-800 tracking-tighter text-indigo-400">SCHOOL STORAGE</div>
-            <nav class="flex-1 p-4 space-y-2 mt-4">
-              <button onclick="currentDashboardPage='home';renderApp()" class="w-full text-left p-4 rounded-2xl font-bold transition-all ${currentDashboardPage==='home'?'bg-indigo-600 shadow-lg':'text-slate-400 hover:bg-slate-800'}">📊 Dashboard</button>
-              <button onclick="currentDashboardPage='accounts';renderApp()" class="w-full text-left p-4 rounded-2xl font-bold transition-all ${currentDashboardPage==='accounts'?'bg-indigo-600 shadow-lg':'text-slate-400 hover:bg-slate-800'}">👥 Kelola Akun</button>
+          <aside class="${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-800 text-white sidebar-transition flex flex-col">
+            <div class="p-4 text-center font-bold border-b border-slate-700 truncate">
+              ${sidebarOpen ? 'Sistem Sekolah' : '🏫'}
+            </div>
+            <nav class="flex-1 p-2 space-y-1">
+              ${renderNavBtn('beranda', '🏠', 'Dashboard')}
+              ${renderNavBtn('guru', '👨‍🏫', 'Data Guru')}
+              ${renderNavBtn('siswa', '👨‍🎓', 'Data Siswa')}
+              ${renderNavBtn('gaji', '💰', 'Gaji Guru')}
             </nav>
-            <div class="p-4 border-t border-slate-800">
-              <button onclick="currentUser=null;currentView='login';renderApp()" class="w-full p-4 bg-red-500/10 text-red-400 rounded-2xl font-bold hover:bg-red-500/20 transition-all">🚪 Keluar</button>
-            </div>
+            <button onclick="currentUser=null;currentView='login';renderApp()" class="p-4 bg-red-600 hover:bg-red-700 text-sm font-bold">Logout</button>
           </aside>
-          
-          <main class="flex-1 flex flex-col bg-[#f8fafc]">
-            <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm">
-              <button onclick="sidebarOpen=!sidebarOpen;renderApp()" class="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-              </button>
-              <div class="flex items-center gap-4">
-                <div class="text-right">
-                  <p class="font-bold text-slate-800 leading-none">${currentUser.username}</p>
-                  <p class="text-[10px] text-indigo-600 font-black uppercase mt-1 tracking-widest">${currentUser.role}</p>
-                </div>
-                <div class="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-200">
-                  ${currentUser.username[0].toUpperCase()}
-                </div>
-              </div>
+
+          <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="h-16 bg-white shadow flex items-center justify-between px-6">
+              <button onclick="sidebarOpen=!sidebarOpen;renderApp()" class="text-xl">☰</button>
+              <span class="font-semibold text-gray-700">Halo, ${currentUser.username} (${currentUser.role})</span>
             </header>
-            <div class="p-10 overflow-auto flex-1">
-              ${renderDashboardContent()}
-            </div>
-          </main>
+            <main class="flex-1 overflow-auto p-6 bg-gray-100">
+              ${renderTabContent()}
+            </main>
+          </div>
         </div>`;
     }
 
-    function renderDashboardContent() {
-      if (currentDashboardPage === 'home') {
-        const users = allData.filter(d => d.type === 'user');
-        return `
-          <div class="max-w-4xl">
-            <h2 class="text-3xl font-black text-slate-800 mb-8 tracking-tight">Ringkasan Penyimpanan</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 group hover:border-indigo-300 transition-all">
-                <p class="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Total Pengguna</p>
-                <p class="text-5xl font-black text-slate-800 group-hover:text-indigo-600 transition-colors">${users.length}</p>
-              </div>
-              <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-                <p class="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Status Server</p>
-                <p class="text-xl font-bold text-emerald-500">Connected</p>
-              </div>
-            </div>
-          </div>`;
-      }
+    function renderNavBtn(id, icon, label) {
+      const active = currentTab === id ? 'bg-indigo-600' : 'hover:bg-slate-700';
+      return `<button onclick="currentTab='${id}';renderApp()" class="w-full flex items-center p-3 rounded-lg ${active} transition-colors">
+        <span class="mr-3">${icon}</span> ${sidebarOpen ? label : ''}
+      </button>`;
+    }
 
-      if (currentDashboardPage === 'accounts') {
-        const users = allData.filter(d => d.type === 'user');
+    function renderTabContent() {
+      if (currentTab === 'beranda') {
+        const counts = {
+          guru: allData.filter(d => d.type === 'guru').length,
+          siswa: allData.filter(d => d.type === 'siswa').length,
+          gaji: allData.filter(d => d.type === 'gaji').length
+        };
         return `
-          <div class="flex justify-between items-end mb-8">
-            <div>
-              <h2 class="text-3xl font-black text-slate-800 tracking-tight">Manajemen Akun</h2>
-              <p class="text-slate-500 text-sm mt-1">Daftar seluruh pengguna yang tersimpan di hosting.</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-blue-500">
+              <h3 class="text-gray-500 text-sm font-bold uppercase">Total Guru</h3>
+              <p class="text-3xl font-bold">${counts.guru}</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-green-500">
+              <h3 class="text-gray-500 text-sm font-bold uppercase">Total Siswa</h3>
+              <p class="text-3xl font-bold">${counts.siswa}</p>
+            </div>
+             <div class="bg-white p-6 rounded-xl shadow border-l-4 border-purple-500">
+              <h3 class="text-gray-500 text-sm font-bold uppercase">Data Gaji</h3>
+              <p class="text-3xl font-bold">${counts.gaji}</p>
             </div>
           </div>
-          <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-            <table class="w-full text-left">
-              <thead>
-                <tr class="bg-slate-50/50 border-b border-slate-100">
-                  <th class="p-6 font-black text-slate-400 text-[10px] uppercase tracking-widest">Identitas</th>
-                  <th class="p-6 font-black text-slate-400 text-[10px] uppercase tracking-widest">Hak Akses</th>
-                  <th class="p-6 font-black text-slate-400 text-[10px] uppercase tracking-widest text-right">Opsi</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-50">
-                ${users.map(u => `
-                  <tr class="hover:bg-slate-50/80 transition-all">
-                    <td class="p-6">
-                      <p class="font-bold text-slate-800">${u.username}</p>
-                      <p class="text-xs text-slate-400 font-medium">${u.email}</p>
-                    </td>
-                    <td class="p-6">
-                      <span class="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-wider">
-                        ${u.role}
-                      </span>
-                    </td>
-                    <td class="p-6 text-right">
-                      ${currentUser.role === 'admin' ? 
-                        `<button onclick="deleteAccount('${u.id}')" class="px-4 py-2 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl transition-all">Hapus Akun</button>` : 
-                        `<span class="text-slate-300 text-[10px] italic font-bold uppercase">Locked</span>`
-                      }
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>`;
+          <div class="mt-10 bg-white p-8 rounded-2xl shadow-sm text-center">
+             <h2 class="text-2xl font-bold text-gray-800 mb-2">Selamat Datang di Sistem Administrasi</h2>
+             <p class="text-gray-500">Gunakan menu di samping untuk mengelola data sekolah secara efisien.</p>
+          </div>
+        `;
+      }
+
+      if (currentTab === 'guru') {
+        return renderModule('Data Guru', 'guru', 
+          ['nama_guru', 'email', 'telepon', 'mata_pelajaran'], 
+          ['Nama', 'Email', 'No. Telp', 'Mapel'],
+          ['nama_guru', 'email', 'telepon', 'mata_pelajaran']
+        );
+      }
+
+      if (currentTab === 'siswa') {
+        return renderModule('Data Siswa', 'siswa', 
+          ['nama_siswa', 'nis', 'kelas', 'alamat'], 
+          ['Nama Siswa', 'NIS', 'Kelas', 'Alamat'],
+          ['nama_siswa', 'nis', 'kelas', 'alamat']
+        );
+      }
+
+      if (currentTab === 'gaji') {
+        return renderModule('Data Gaji Guru', 'gaji', 
+          ['nama_guru', 'bulan', 'tahun', 'gaji_harian', 'hari_hadir'], 
+          ['Nama Guru', 'Bulan', 'Tahun', 'Gaji/Hari', 'Hadir'],
+          ['nama_guru', 'bulan', 'tahun', 'gaji_harian', 'hari_hadir']
+        );
       }
     }
 
-    // --- INITIALIZATION ---
-    async function init() {
-      if (window.dataSdk) {
-        // Polling data setiap ada perubahan di hosting
-        window.dataSdk.onChangeListener((data) => {
-          allData = Array.isArray(data) ? data : [];
-          if (currentView === 'dashboard') renderApp();
-        });
+    function renderModule(title, type, fields, headers, keys) {
+      const data = allData.filter(d => d.type === type);
+      return `
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-800">${title}</h2>
+          <button onclick="exportToPDF('${type}', '${title}', ${JSON.stringify(headers)}, ${JSON.stringify(keys)})" class="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700">Export PDF</button>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow mb-8">
+          <h3 class="font-bold mb-4">${editingItem ? 'Edit' : 'Tambah'} Data</h3>
+          <form onsubmit="saveForm(event, '${type}', ${JSON.stringify(fields)})" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${fields.map(f => `<input name="${f}" value="${editingItem && editingItem[f] ? editingItem[f] : ''}" placeholder="${f.replace('_', ' ').toUpperCase()}" required class="p-2 border rounded">`).join('')}
+            <div class="flex gap-2">
+              <button class="bg-indigo-600 text-white px-6 py-2 rounded font-bold hover:bg-indigo-700">${editingItem ? 'Update' : 'Simpan'}</button>
+              ${editingItem ? `<button type="button" onclick="editingItem=null;renderApp()" class="bg-gray-500 text-white px-4 py-2 rounded">Batal</button>` : ''}
+            </div>
+          </form>
+        </div>
 
-        try {
-          // Muat data awal dari hosting
-          const initialData = await window.dataSdk.read();
-          if (initialData) allData = initialData;
-        } catch (e) {
-          console.error("SDK Read Error:", e);
-        }
-      } else {
-        showToast('Gagal memuat SDK Database', 'error');
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+          <table class="w-full text-left">
+            <thead class="bg-gray-50 border-b">
+              <tr>
+                ${headers.map(h => `<th class="p-4 font-bold text-gray-600">${h}</th>`).join('')}
+                <th class="p-4 font-bold text-gray-600 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(item => `
+                <tr class="border-b hover:bg-gray-50">
+                  ${keys.map(k => `<td class="p-4 text-gray-700">${item[k] || '-'}</td>`).join('')}
+                  <td class="p-4 flex justify-center gap-2">
+                    <button onclick='editingItem=${JSON.stringify(item)};renderApp()' class="text-blue-600 hover:underline font-bold">Edit</button>
+                    <button onclick='deleteItemData(${JSON.stringify(item)})' class="text-red-600 hover:underline font-bold">Hapus</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${data.length === 0 ? '<p class="p-10 text-center text-gray-400">Tidak ada data ditemukan.</p>' : ''}
+        </div>`;
+    }
+
+    async function deleteItemData(item) {
+      if (confirm('Yakin ingin menghapus data ini?')) {
+        const res = await window.dataSdk.delete(item);
+        if (res.isOk) showToast('Data berhasil dihapus');
+      }
+    }
+
+    // --- INITIALIZE ---
+    async function initApp() {
+      if (window.dataSdk) {
+        window.dataSdk.onChangeListener(dataHandler.onDataChanged);
+        const data = await window.dataSdk.read();
+        allData = data || [];
       }
       renderApp();
     }
 
-    init();
+    initApp();
   </script>
- </body>
+</body>
 </html>
