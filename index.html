@@ -1,306 +1,49 @@
-<!doctype html>
-<html lang="id" class="h-full">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Administrasi Sekolah v2026</title>
-  
-  <script src="/_sdk/data_sdk.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistem Administrasi Madrasah</title>
+  <link rel="icon" href="https://static.vecteezy.com/system/resources/previews/016/716/181/large_2x/website-3d-icon-png.png" type="image/x-icon">
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .sidebar-transition { transition: all 0.3s ease; }
-    .toast {
-      position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 8px;
-      color: white; font-weight: 500; z-index: 9999; animation: slideIn 0.3s ease-out;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
     }
-    .toast.success { background: #10b981; }
-    .toast.error { background: #ef4444; }
-    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-    .loader { border-top-color: #667eea; animation: spinner 1.5s linear infinite; }
-    @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .iframe-container {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .loader {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      color: #666;
+      z-index: 10;
+    }
   </style>
 </head>
-<body class="h-full bg-gray-50 text-gray-800">
-  <div id="app" class="h-full w-full overflow-auto"></div>
-
-  <script>
-    // --- STATE MANAGEMENT ---
-    let allData = [];
-    let currentUser = null;
-    let currentView = 'login';
-    let currentSubView = 'beranda';
-    let editingItem = null;
-    const SESSION_KEY = 'school_admin_session_2026';
-
-    // --- UTILITIES ---
-    function showToast(msg, type = 'success') {
-      const t = document.createElement('div');
-      t.className = `toast ${type}`;
-      t.textContent = msg;
-      document.body.appendChild(t);
-      setTimeout(() => t.remove(), 3000);
-    }
-    function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
-
-    // --- SESSION HANDLER (LocalStorage) ---
-    function saveSession(user) { localStorage.setItem(SESSION_KEY, JSON.stringify(user)); }
-    function loadSession() {
-      const saved = localStorage.getItem(SESSION_KEY);
-      if (saved) { currentUser = JSON.parse(saved); currentView = 'dashboard'; }
-    }
-    function clearSession() { localStorage.removeItem(SESSION_KEY); currentUser = null; currentView = 'login'; renderApp(); }
-
-    // --- AUTH LOGIC (FIXED REGISTRATION) ---
-    async function handleRegister(e) {
-      e.preventDefault();
-      const form = e.target;
-      const btn = form.querySelector('button[type="submit"]');
-      const email = form.email.value.trim();
-      const username = form.username.value.trim();
-      const password = form.password.value;
-
-      if (password.length < 6) return showToast('Password minimal 6 karakter!', 'error');
-
-      try {
-        btn.disabled = true;
-        btn.innerHTML = 'Memproses...';
-
-        // Ambil data terbaru dari database untuk cek duplikasi
-        const freshData = await window.dataSdk.read() || [];
-        const exists = freshData.find(d => d.type === 'user' && d.username.toLowerCase() === username.toLowerCase());
-        
-        if (exists) {
-          showToast('Username sudah digunakan!', 'error');
-          return;
-        }
-
-        const newUser = {
-          id: generateId(),
-          type: 'user',
-          email,
-          username,
-          password,
-          role: form.role.value,
-          created_at: new Date().toISOString()
-        };
-
-        const result = await window.dataSdk.create(newUser);
-        if (result.isOk) {
-          showToast('Registrasi Berhasil! Silakan Login.');
-          currentView = 'login';
-          renderApp();
-        }
-      } catch (err) {
-        showToast('Gagal terhubung ke database', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'DAFTAR';
-      }
-    }
-
-    function handleLogin(e) {
-      e.preventDefault();
-      const user = allData.find(d => 
-        d.type === 'user' && 
-        d.username.toLowerCase() === e.target.username.value.trim().toLowerCase() && 
-        d.password === e.target.password.value
-      );
-
-      if (user) {
-        currentUser = user;
-        saveSession(user);
-        currentView = 'dashboard';
-        showToast(`Selamat datang, ${user.username}!`);
-        renderApp();
-      } else {
-        showToast('Username atau password salah', 'error');
-      }
-    }
-
-    // --- DATA HANDLERS ---
-    async function handleDataGuru(e) {
-      e.preventDefault();
-      const form = e.target;
-      const data = {
-        type: 'guru',
-        nama_guru: form.nama_guru.value,
-        mata_pelajaran: form.mata_pelajaran.value,
-        telepon: form.telepon.value,
-        updated_at: new Date().toISOString()
-      };
-      const res = editingItem ? await window.dataSdk.update({...editingItem, ...data}) : await window.dataSdk.create({id: generateId(), ...data, created_at: new Date().toISOString()});
-      if (res.isOk) { showToast('Data Guru tersimpan'); editingItem = null; renderApp(); }
-    }
-
-    async function handleDataSiswa(e) {
-      e.preventDefault();
-      const form = e.target;
-      const data = {
-        type: 'siswa',
-        nama_siswa: form.nama_siswa.value,
-        nis: form.nis.value,
-        kelas: form.kelas.value,
-        updated_at: new Date().toISOString()
-      };
-      const res = editingItem ? await window.dataSdk.update({...editingItem, ...data}) : await window.dataSdk.create({id: generateId(), ...data, created_at: new Date().toISOString()});
-      if (res.isOk) { showToast('Data Siswa tersimpan'); editingItem = null; renderApp(); }
-    }
-
-    // --- RENDERING ENGINE ---
-    function renderApp() {
-      const app = document.getElementById('app');
-      if (currentView === 'login') return renderLogin(app);
-      if (currentView === 'register') return renderRegister(app);
-      if (currentView === 'dashboard') return renderDashboard(app);
-    }
-
-    function renderLogin(container) {
-      container.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-500 to-purple-600">
-          <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md">
-            <h2 class="text-3xl font-bold text-center text-indigo-700 mb-8">ADMIN LOGIN</h2>
-            <form onsubmit="handleLogin(event)" class="space-y-4">
-              <input name="username" type="text" placeholder="Username" class="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400" required>
-              <input name="password" type="password" placeholder="Password" class="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400" required>
-              <button type="submit" class="w-full py-4 rounded-xl text-white font-bold btn-primary transition">MASUK</button>
-            </form>
-            <button onclick="currentView='register'; renderApp()" class="w-full mt-6 text-indigo-600 font-semibold hover:underline">Belum punya akun? Daftar</button>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderRegister(container) {
-      container.innerHTML = `
-        <div class="min-h-screen flex items-center justify-center p-4 bg-gray-100">
-          <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-            <h2 class="text-2xl font-bold text-center mb-6">BUAT AKUN BARU</h2>
-            <form onsubmit="handleRegister(event)" class="space-y-4">
-              <input name="email" type="email" placeholder="Email" class="w-full p-3 border rounded-lg" required>
-              <input name="username" type="text" placeholder="Username" class="w-full p-3 border rounded-lg" required>
-              <input name="password" type="password" placeholder="Password (Min. 6 Karakter)" class="w-full p-3 border rounded-lg" required>
-              <select name="role" class="w-full p-3 border rounded-lg">
-                <option value="admin">Admin Sekolah</option>
-                <option value="guru">Guru</option>
-              </select>
-              <button type="submit" class="w-full py-3 rounded-lg text-white font-bold btn-primary transition">DAFTAR</button>
-            </form>
-            <button onclick="currentView='login'; renderApp()" class="w-full mt-4 text-gray-500 hover:underline text-sm">Kembali ke Login</button>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderDashboard(container) {
-      container.innerHTML = `
-        <div class="flex h-screen overflow-hidden">
-          <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl sidebar-transition">
-            <div class="p-6 text-center font-bold text-xl border-b border-slate-800 tracking-widest text-indigo-400">SCHOOL APP</div>
-            <nav class="flex-1 p-4 space-y-1">
-              <button onclick="switchView('beranda')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 transition ${currentSubView==='beranda'?'bg-indigo-600':''}">🏠 Beranda</button>
-              <button onclick="switchView('guru')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 transition ${currentSubView==='guru'?'bg-indigo-600':''}">👨‍🏫 Data Guru</button>
-              <button onclick="switchView('siswa')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 transition ${currentSubView==='siswa'?'bg-indigo-600':''}">🎓 Data Siswa</button>
-              <button onclick="switchView('gaji')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 transition ${currentSubView==='gaji'?'bg-indigo-600':''}">💰 Gaji Guru</button>
-            </nav>
-            <div class="p-4 bg-slate-800 border-t border-slate-700">
-              <div class="text-xs opacity-50 uppercase mb-1">Pengguna:</div>
-              <div class="font-bold text-sm mb-3 truncate">${currentUser.username}</div>
-              <button onclick="clearSession()" class="w-full bg-red-500 hover:bg-red-600 p-2 rounded-lg text-xs font-bold transition">LOGOUT</button>
-            </div>
-          </aside>
-          <main class="flex-1 overflow-y-auto p-8">
-            <h1 class="text-3xl font-bold text-slate-800 mb-8 capitalize">${currentSubView}</h1>
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 min-h-[500px]">
-              ${renderSubViewContent()}
-            </div>
-          </main>
-        </div>
-      `;
-    }
-
-    function switchView(v) { currentSubView = v; editingItem = null; renderApp(); }
-
-    function renderSubViewContent() {
-      if (currentSubView === 'beranda') {
-        return `
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="p-6 bg-blue-50 border-l-4 border-blue-500 rounded-xl">
-              <div class="text-blue-600 text-sm font-bold uppercase">Total Guru</div>
-              <div class="text-4xl font-black">${allData.filter(d => d.type === 'guru').length}</div>
-            </div>
-            <div class="p-6 bg-purple-50 border-l-4 border-purple-500 rounded-xl">
-              <div class="text-purple-600 text-sm font-bold uppercase">Total Siswa</div>
-              <div class="text-4xl font-black">${allData.filter(d => d.type === 'siswa').length}</div>
-            </div>
-          </div>
-        `;
-      }
-
-      if (currentSubView === 'guru') {
-        return `
-          <form onsubmit="handleDataGuru(event)" class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
-            <input name="nama_guru" value="${editingItem?.nama_guru || ''}" placeholder="Nama Lengkap" class="p-3 border rounded-lg shadow-sm" required>
-            <input name="mata_pelajaran" value="${editingItem?.mata_pelajaran || ''}" placeholder="Mata Pelajaran" class="p-3 border rounded-lg shadow-sm" required>
-            <input name="telepon" value="${editingItem?.telepon || ''}" placeholder="Nomor Telepon" class="p-3 border rounded-lg shadow-sm">
-            <div class="md:col-span-3">
-              <button type="submit" class="bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition">
-                ${editingItem ? 'Update Data' : 'Tambah Guru'}
-              </button>
-              ${editingItem ? `<button type="button" onclick="switchView('guru')" class="ml-3 text-slate-500 hover:underline">Batal</button>` : ''}
-            </div>
-          </form>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left">
-              <thead><tr class="bg-slate-100 text-slate-600 uppercase text-xs tracking-widest"><th class="p-4">Nama</th><th class="p-4">Mapel</th><th class="p-4">Aksi</th></tr></thead>
-              <tbody>
-                ${allData.filter(d => d.type === 'guru').map(g => `
-                  <tr class="border-b border-slate-50 hover:bg-slate-50 transition">
-                    <td class="p-4 font-semibold">${g.nama_guru}</td>
-                    <td class="p-4 text-slate-600">${g.mata_pelajaran}</td>
-                    <td class="p-4">
-                      <button onclick="setEdit('${g.id}')" class="text-indigo-600 font-bold mr-4">Edit</button>
-                      <button onclick="deleteData('${g.id}')" class="text-red-500 font-bold">Hapus</button>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `;
-      }
-      return `<p class="text-slate-400">Modul <b>${currentSubView}</b> segera hadir.</p>`;
-    }
-
-    // --- CRUD ACTIONS ---
-    window.setEdit = function(id) { editingItem = allData.find(d => d.id === id); renderApp(); };
-    window.deleteData = async function(id) {
-      if(confirm('Hapus data ini?')) {
-        const item = allData.find(d => d.id === id);
-        const res = await window.dataSdk.delete(item);
-        if(res.isOk) showToast('Data dihapus', 'error');
-      }
-    };
-
-    // --- INITIALIZATION ---
-    async function initApp() {
-      loadSession(); // Ambil login dari LocalStorage
-      if (window.dataSdk) {
-        window.dataSdk.onChangeListener((data) => { allData = data; renderApp(); });
-        const data = await window.dataSdk.read();
-        if (data) allData = data;
-      }
-      renderApp();
-    }
-
-    initApp();
-  </script>
+<body>
+  <div class="iframe-container">
+    <div class="loader" id="loader">Loading app...</div>
+    <iframe 
+      src="https://script.google.com/macros/s/AKfycbwZEhCBa4j5YdaR_E1yREnhrBYxvJpPuPX8OieBdoaEwDeSJmVrTYRVBO_SX3bGd767bg/exec" 
+      title="JNCfy Web App"
+      onload="document.getElementById('loader').style.display='none';"
+      allowfullscreen>
+    </iframe>
+  </div>
 </body>
 </html>
+
